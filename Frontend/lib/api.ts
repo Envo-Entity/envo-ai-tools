@@ -8,6 +8,7 @@ export type ChatMessage = {
 export async function sendChat(messages: ChatMessage[]) {
   const response = await fetch(`${API_URL}/api/chat`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
@@ -19,4 +20,35 @@ export async function sendChat(messages: ChatMessage[]) {
   }
 
   return (await response.json()) as { reply: string };
+}
+
+export async function getSession() {
+  const response = await fetch(`${API_URL}/api/auth/session`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to load session.");
+  }
+
+  return (await response.json()) as { authenticated: boolean };
+}
+
+export async function unlockSite(password: string) {
+  const response = await fetch(`${API_URL}/api/auth/unlock`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ password }),
+  });
+
+  const data = (await response.json()) as { authenticated?: boolean; error?: string };
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Unlock failed.");
+  }
+
+  return data;
 }

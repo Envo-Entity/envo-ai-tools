@@ -26,6 +26,8 @@ PORT=4000
 DATABASE_URL=your_neon_database_url
 GEMINI_API_KEY=your_gemini_api_key
 FRONTEND_URL=http://localhost:3000
+SITE_PASSWORD=1234
+AUTH_COOKIE_SECRET=use-a-long-random-string-here
 ```
 
 ```env
