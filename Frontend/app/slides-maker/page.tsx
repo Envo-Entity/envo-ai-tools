@@ -358,7 +358,7 @@ function SlideTile({
 }) {
   return (
     <div
-      className={`group relative rounded-[28px] border bg-[rgba(255,255,255,0.04)] p-3 text-left transition hover:border-white/20 hover:bg-[rgba(255,255,255,0.06)] ${
+      className={`group relative mb-4 inline-block w-full break-inside-avoid rounded-[28px] border bg-[rgba(255,255,255,0.04)] p-3 text-left align-top transition hover:border-white/20 hover:bg-[rgba(255,255,255,0.06)] ${
         isReference ? "border-[rgba(194,58,131,0.55)]" : "border-white/10"
       }`}
       onClick={() => onOpen(slide)}
@@ -433,7 +433,7 @@ export default function SlidesMakerPage() {
   const [prompt, setPrompt] = useState("");
   const [ideaSeed, setIdeaSeed] = useState("");
   const [selectedAspectRatio, setSelectedAspectRatio] = useState("4:5");
-  const [numberOfOutputs, setNumberOfOutputs] = useState("6");
+  const [numberOfOutputs, setNumberOfOutputs] = useState("1");
   const [selectedReferenceSlideId, setSelectedReferenceSlideId] = useState<string | null>(null);
   const [selectedOutput, setSelectedOutput] = useState<SlideRecord | null>(null);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
@@ -546,7 +546,7 @@ export default function SlidesMakerPage() {
         throw new Error("Select a project first.");
       }
 
-      const requestedOutputs = Math.max(1, Math.min(10, Number.parseInt(numberOfOutputs || "1", 10) || 1));
+      const requestedOutputs = Math.max(1, Math.min(3, Number.parseInt(numberOfOutputs || "1", 10) || 1));
 
       return createGeneration(selectedProjectId, {
         prompt: input.prompt,
@@ -1227,10 +1227,10 @@ export default function SlidesMakerPage() {
                     className="max-w-28"
                     inputMode="numeric"
                     onChange={(event) => setNumberOfOutputs(event.target.value.replace(/\D/g, ""))}
-                    placeholder="6"
+                    placeholder="1"
                     value={numberOfOutputs}
                   />
-                  <span className="font-body text-sm text-[color:var(--color-text-secondary)]">Number of sibling variants</span>
+                  <span className="font-body text-sm text-[color:var(--color-text-secondary)]">Number of sibling variants, max 3</span>
                 </div>
               </div>
 
@@ -1295,13 +1295,13 @@ export default function SlidesMakerPage() {
 
               {formError && <p className="font-body text-sm leading-6 text-[color:var(--color-accent)]">{formError}</p>}
 
-              <div className="grid gap-4 lg:grid-cols-3">
+              <div className="columns-1 [column-gap:1rem] md:columns-2 xl:columns-3">
                 {projectQuery.isLoading ? (
-                  <div className="lg:col-span-3 flex min-h-[320px] items-center justify-center">
+                  <div className="flex min-h-[320px] items-center justify-center rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.03)]">
                     <Loader2 className="h-6 w-6 animate-spin text-[color:var(--color-accent)]" />
                   </div>
                 ) : currentSlides.length === 0 ? (
-                  <div className="lg:col-span-3 flex min-h-[420px] flex-col items-center justify-center rounded-[28px] border border-dashed border-white/12 bg-[rgba(255,255,255,0.03)] px-6 text-center">
+                  <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] border border-dashed border-white/12 bg-[rgba(255,255,255,0.03)] px-6 text-center">
                     <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(255,255,255,0.05)] text-[color:var(--color-accent)]">
                       <Sparkles className="h-7 w-7" />
                     </div>

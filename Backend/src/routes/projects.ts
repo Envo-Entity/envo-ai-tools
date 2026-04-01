@@ -46,7 +46,7 @@ const registerMediaSchema = z.object({
 
 const createGenerationSchema = z.object({
   prompt: z.string().trim().min(1),
-  requestedOutputs: z.coerce.number().int().min(1).max(10),
+  requestedOutputs: z.coerce.number().int().min(1).max(3),
   aspectRatio: z.enum(["9:16", "16:9", "1:1", "4:5", "3:4", "4:3"]),
   referenceSlideId: z.string().trim().optional().nullable(),
   trigger: z.enum(["prompt", "idea", "reference"]).optional(),
