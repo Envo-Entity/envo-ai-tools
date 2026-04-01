@@ -28,6 +28,7 @@ GEMINI_API_KEY=your_gemini_api_key
 FRONTEND_URL=http://localhost:3000
 SITE_PASSWORD=1234
 AUTH_COOKIE_SECRET=use-a-long-random-string-here
+UPLOADTHING_TOKEN=your_uploadthing_token
 ```
 
 ```env
@@ -46,3 +47,15 @@ npm run dev
 - Drizzle + Neon DB client setup
 - Gemini chat endpoint using `gemini-3.1-pro-preview`
 - Minimal full-stack chat UI
+- UploadThing asset uploads with client-side resize/compression before upload
+
+## Drizzle Studio
+
+From the backend folder, run:
+
+```bash
+cd /Users/shivanshsharma/Code/aitools/Backend
+bun run db:studio
+```
+
+It will use `Backend/.env` and open Drizzle Studio against your Neon database.

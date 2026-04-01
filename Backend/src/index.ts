@@ -3,6 +3,7 @@ import cors from "cors";
 import { env } from "./config/env.js";
 import { chatRouter } from "./routes/chat.js";
 import { authRouter } from "./routes/auth.js";
+import { uploadthingHandler } from "./uploadthing.js";
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.get("/health", (_req, res) => {
   });
 });
 
+app.use("/api/uploadthing", uploadthingHandler);
 app.use("/api/auth", authRouter);
 app.use("/api/chat", chatRouter);
 

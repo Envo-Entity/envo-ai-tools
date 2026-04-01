@@ -5,6 +5,8 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { optimizeImagesForUpload } from "@/lib/image-processing";
+import { uploadthingClient } from "@/lib/uploadthing";
 
 type AppView = "projects" | "config" | "workspace";
 type WorkspaceMode = "prompt" | "ideas";
@@ -133,21 +135,31 @@ export default function SlidesMakerPage() {
   const [inspirations, setInspirations] = useState<AssetItem[]>([]);
   const [generatedItems, setGeneratedItems] = useState<GeneratedItem[]>([]);
   const [selectedOutput, setSelectedOutput] = useState<GeneratedItem | null>(null);
+  const [isUploadingAssets, setIsUploadingAssets] = useState(false);
+  const [isUploadingInspirations, setIsUploadingInspirations] = useState(false);
 
   const currentProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
     [projects, selectedProjectId],
   );
 
-  function buildAssetItems(fileList: FileList | null) {
+  async function uploadAssetFiles(fileList: FileList | null) {
     if (!fileList) {
       return [];
     }
 
-    return Array.from(fileList).map((file) => ({
-      id: `${file.name}-${file.lastModified}`,
+    const optimizedFiles = await optimizeImagesForUpload(Array.from(fileList));
+    const uploadedFiles = await uploadthingClient.uploadFiles("assetUploader", {
+      files: optimizedFiles,
+      headers: () => ({
+        Accept: "application/json",
+      }),
+    });
+
+    return uploadedFiles.map((file, index) => ({
+      id: `${file.key}-${index}`,
       name: file.name,
-      url: URL.createObjectURL(file),
+      url: file.ufsUrl,
     }));
   }
 
@@ -401,7 +413,16 @@ export default function SlidesMakerPage() {
                       className="hidden"
                       id="config-assets"
                       multiple
-                      onChange={(event) => setAssets((current) => [...current, ...buildAssetItems(event.target.files)])}
+                      onChange={async (event) => {
+                        try {
+                          setIsUploadingAssets(true);
+                          const nextAssets = await uploadAssetFiles(event.target.files);
+                          setAssets((current) => [...current, ...nextAssets]);
+                        } finally {
+                          setIsUploadingAssets(false);
+                          event.target.value = "";
+                        }
+                      }}
                       type="file"
                     />
                   </label>
@@ -414,7 +435,11 @@ export default function SlidesMakerPage() {
                     Assets
                   </p>
                   <div className="mt-4 grid gap-3">
-                    {assets.length === 0 ? (
+                    {isUploadingAssets ? (
+                      <p className="font-body text-sm leading-6 text-[color:var(--color-text-secondary)]">
+                        Uploading and optimizing assets...
+                      </p>
+                    ) : assets.length === 0 ? (
                       <p className="font-body text-sm leading-6 text-[color:var(--color-text-secondary)]">
                         No assets added yet.
                       </p>
@@ -596,10 +621,25 @@ export default function SlidesMakerPage() {
                       className="hidden"
                       id="inspirations"
                       multiple
-                      onChange={(event) => setInspirations((current) => [...current, ...buildAssetItems(event.target.files)])}
+                      onChange={async (event) => {
+                        try {
+                          setIsUploadingInspirations(true);
+                          const nextInspirations = await uploadAssetFiles(event.target.files);
+                          setInspirations((current) => [...current, ...nextInspirations]);
+                        } finally {
+                          setIsUploadingInspirations(false);
+                          event.target.value = "";
+                        }
+                      }}
                       type="file"
                     />
                   </label>
+
+                  {isUploadingInspirations && (
+                    <p className="font-body text-sm leading-6 text-[color:var(--color-text-secondary)]">
+                      Uploading and optimizing inspiration images...
+                    </p>
+                  )}
 
                   {inspirations.length > 0 && (
                     <div className="grid grid-cols-3 gap-2">
@@ -741,19 +781,23 @@ export default function SlidesMakerPage() {
                       className="hidden"
                       multiple
                       onChange={(event) => {
-                        const nextAssets = buildAssetItems(event.target.files);
+                        void (async () => {
+                          const nextAssets = await uploadAssetFiles(event.target.files);
 
-                        if (!currentProject || nextAssets.length === 0) {
-                          return;
-                        }
+                          if (!currentProject || nextAssets.length === 0) {
+                            return;
+                          }
 
-                        setProjects((current) =>
-                          current.map((project) =>
-                            project.id === currentProject.id
-                              ? { ...project, assets: [...project.assets, ...nextAssets] }
-                              : project,
-                          ),
-                        );
+                          setProjects((current) =>
+                            current.map((project) =>
+                              project.id === currentProject.id
+                                ? { ...project, assets: [...project.assets, ...nextAssets] }
+                                : project,
+                            ),
+                          );
+
+                          event.target.value = "";
+                        })();
                       }}
                       type="file"
                     />
