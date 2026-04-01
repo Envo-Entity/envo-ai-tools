@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ChevronLeft, ChevronRight, LockKeyhole } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,8 @@ const TOOLS = [
   {
     name: "AI Slides Maker",
     description: "Create slide decks with AI-driven outlines, tone control, and fast first drafts.",
-    status: "Available",
+    status: "Under Construction",
+    href: "/slides-maker",
   },
 ];
 
@@ -138,14 +140,14 @@ function ToolsHome() {
             HI THERE,
           </p>
           <p className="font-accent mt-4 text-[5.5rem] uppercase leading-[0.78] tracking-[-0.1em] text-[color:var(--color-text)] sm:text-[7.5rem]">
-            WHOA.
+            E N V O
           </p>
           <p className="font-body mt-6 max-w-lg text-base leading-8 text-[color:var(--color-text-secondary)]">
-            Your tools live here. Clean dark canvas, no gradients, and a focused list of products starting with the first one below.
+            Your AI tools are live here.
           </p>
         </header>
 
-        <section className="rounded-[32px] border border-white/8 bg-[color:var(--color-bg)]">
+        <section className="rounded-[32px] border border-white/10 bg-[rgba(255,255,255,0.04)] shadow-[0_24px_80px_-48px_rgba(0,0,0,0.85)] backdrop-blur-sm">
           <div className="flex flex-col gap-4 border-b border-white/8 px-6 py-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="font-accent text-sm uppercase tracking-[0.18em] text-[color:var(--color-accent)]">
@@ -185,9 +187,10 @@ function ToolsHome() {
 
           <div className="grid gap-4 p-6">
             {currentTools.map((tool, index) => (
-              <article
+              <Link
                 key={tool.name}
-                className="rounded-[28px] border border-white/8 bg-[rgba(255,255,255,0.02)] p-5"
+                href={tool.href}
+                className="block cursor-pointer rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.05)] p-5 transition hover:border-white/20 hover:bg-[rgba(255,255,255,0.07)]"
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -205,14 +208,14 @@ function ToolsHome() {
                   <div
                     className="font-body inline-flex w-fit items-center rounded-full border px-4 py-2 text-sm"
                     style={{
-                      borderColor: Palette.mandarin[700],
-                      color: Palette.mandarin[700],
+                      borderColor: Palette.warning[500],
+                      color: Palette.warning[500],
                     }}
                   >
                     {tool.status}
                   </div>
                 </div>
-              </article>
+              </Link>
             ))}
           </div>
         </section>
