@@ -1,0 +1,15 @@
+{
+  "name": "envo-ai-tools",
+  "private": true,
+  "scripts": {
+    "setup": "npm install --ignore-scripts && npm --prefix Backend install && npm --prefix Frontend install",
+    "dev:backend": "npm --prefix Backend run dev",
+    "dev:frontend": "npm --prefix Frontend run dev",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build": "npm --prefix Backend run build && npm --prefix Frontend run build",
+    "start": "concurrently \"npm --prefix Backend run start\" \"npm --prefix Frontend run start\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
