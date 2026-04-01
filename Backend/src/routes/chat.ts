@@ -1,7 +1,7 @@
 import { ThinkingLevel } from "@google/genai";
 import { Router } from "express";
 import { z } from "zod";
-import { ai, GEMINI_MODEL } from "../lib/gemini.js";
+import { ai, GEMINI_TEXT_MODEL } from "../lib/gemini.js";
 
 const chatRouter = Router();
 
@@ -32,7 +32,7 @@ chatRouter.post("/", async (req, res) => {
 
   try {
     const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
+      model: GEMINI_TEXT_MODEL,
       contents: parsed.data.messages.map((message) => ({
         role: message.role,
         parts: [{ text: message.text }],

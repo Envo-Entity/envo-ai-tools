@@ -1,6 +1,8 @@
 import { createUploadthing, createRouteHandler, type FileRouter } from "uploadthing/express";
+import { z } from "zod";
 import { env } from "./config/env.js";
-import { hasValidSession } from "./lib/auth.js";
+import { countProjectAssets, getProjectById } from "./lib/projects.js";
+import { persistUploadedProjectMedia } from "./lib/slide-generation.js";
 
 const f = createUploadthing();
 
@@ -8,23 +10,51 @@ export const uploadRouter = {
   assetUploader: f({
     image: {
       maxFileSize: "4MB",
-      maxFileCount: 8,
+      maxFileCount: 10,
     },
   })
-    .middleware(({ req }) => {
-      if (!hasValidSession(req)) {
-        throw new Error("Unauthorized");
+    .input(
+      z.object({
+        projectId: z.string().min(1),
+        kind: z.enum(["asset", "inspiration"]),
+      }),
+    )
+    .middleware(async ({ input }) => {
+      const project = await getProjectById(input.projectId);
+
+      if (!project) {
+        throw new Error("Project not found.");
+      }
+
+      if (input.kind === "asset") {
+        const existingAssetCount = await countProjectAssets(input.projectId);
+
+        if (existingAssetCount >= 10) {
+          throw new Error("Project asset limit reached.");
+        }
       }
 
       return {
-        uploadedBy: "authenticated-user",
+        projectId: input.projectId,
+        kind: input.kind,
       };
     })
-    .onUploadComplete(({ file, metadata }) => {
+    .onUploadComplete(async ({ file, metadata }) => {
+      await persistUploadedProjectMedia({
+        projectId: metadata.projectId,
+        kind: metadata.kind,
+        key: file.key,
+        url: file.ufsUrl,
+        name: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size,
+      });
+
       return {
+        key: file.key,
         name: file.name,
         url: file.ufsUrl,
-        uploadedBy: metadata.uploadedBy,
+        kind: metadata.kind,
       };
     }),
 } satisfies FileRouter;
