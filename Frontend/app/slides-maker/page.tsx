@@ -1,22 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, FolderOpen, ImagePlus, LayoutTemplate, Lightbulb, Loader2, Plus, Sparkles, Wand2 } from "lucide-react";
+import { AtSign, Check, Copy, FolderOpen, ImagePlus, LayoutTemplate, Lightbulb, Loader2, Pencil, Plus, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   createGeneration,
   createProject,
+  deleteIdea,
+  deleteProjectMedia,
+  deleteProject,
+  deleteSlide,
   generateIdeas,
   getGenerationRun,
   getProject,
   getSlideDownloadUrl,
   listProjects,
+  registerUploadedProjectMedia,
+  renameProjectMedia,
   type GenerationRun,
   type GenerationStatus,
-  type IdeaItem,
   type ProjectDetail,
   type ProjectMedia,
   type SlideRecord,
@@ -32,6 +37,13 @@ type PendingFile = {
   previewUrl: string;
 };
 
+type AssetMentionMatch = {
+  media: ProjectMedia;
+  start: number;
+  end: number;
+  query: string;
+};
+
 const aspectRatios = [
   { label: "9:16", name: "Story", preview: "aspect-[9/16]" },
   { label: "16:9", name: "Wide", preview: "aspect-[16/9]" },
@@ -43,6 +55,10 @@ const aspectRatios = [
 
 function getSelectedRatioPreview(selectedAspectRatio: string) {
   return aspectRatios.find((ratio) => ratio.label === selectedAspectRatio)?.preview ?? "aspect-[4/5]";
+}
+
+function getAspectRatioStyleValue(aspectRatio: string) {
+  return aspectRatio.replace(":", " / ");
 }
 
 function getStatusLabel(status: GenerationStatus) {
@@ -66,6 +82,122 @@ function getStatusLabel(status: GenerationStatus) {
   }
 }
 
+function createPreviewHtmlDocument(htmlDocument: string) {
+  const previewStyle = `
+    <style data-slide-inline-preview>
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        overflow: hidden !important;
+        background: transparent !important;
+      }
+      body {
+        display: block !important;
+      }
+      [data-slide-root="true"] {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        max-height: none !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+      }
+    </style>
+  `.trim();
+
+  if (htmlDocument.includes("data-slide-inline-preview")) {
+    return htmlDocument;
+  }
+
+  if (/<\/head>/i.test(htmlDocument)) {
+    return htmlDocument.replace(/<\/head>/i, `${previewStyle}</head>`);
+  }
+
+  if (/<head[^>]*>/i.test(htmlDocument)) {
+    return htmlDocument.replace(/<head[^>]*>/i, (match) => `${match}${previewStyle}`);
+  }
+
+  return htmlDocument.replace(/<html([^>]*)>/i, `<html$1><head>${previewStyle}</head>`);
+}
+
+function SlideCanvasPreview({
+  slide,
+  fill = false,
+  minHeightClass = "min-h-[18rem]",
+}: {
+  slide: SlideRecord;
+  fill?: boolean;
+  minHeightClass?: string;
+}) {
+  return (
+    <div
+      className={`overflow-hidden rounded-[22px] border border-white/10 bg-[rgba(15,25,31,0.45)] ${
+        fill ? "absolute inset-0 h-full w-full" : `relative ${minHeightClass}`
+      }`}
+    >
+      {slide.status === "completed" && slide.htmlDocument ? (
+        <iframe
+          className="block h-full w-full bg-transparent"
+          sandbox="allow-scripts allow-same-origin"
+          srcDoc={createPreviewHtmlDocument(slide.htmlDocument)}
+          title={slide.title}
+        />
+      ) : slide.htmlDocument ? (
+        <iframe
+          className="block h-full w-full bg-transparent"
+          sandbox="allow-scripts allow-same-origin"
+          srcDoc={createPreviewHtmlDocument(slide.htmlDocument)}
+          title={slide.title}
+        />
+      ) : (
+        <div className="flex h-full min-h-[12rem] items-center justify-center px-6 text-center">
+          <div>
+            {slide.status !== "failed" && <Loader2 className="mx-auto h-5 w-5 animate-spin text-[color:var(--color-accent)]" />}
+            <p className="font-subtitle mt-3 text-base text-[color:var(--color-text)]">{getStatusLabel(slide.status)}</p>
+            <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">
+              {slide.error ?? "The backend is building this slide variant now."}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getAssetMentionMatch(prompt: string, caretIndex: number, assets: ProjectMedia[]): AssetMentionMatch | null {
+  const textBeforeCaret = prompt.slice(0, caretIndex);
+  const mentionMatch = /(?:^|\s)@([^\s@]*)$/.exec(textBeforeCaret);
+
+  if (!mentionMatch) {
+    return null;
+  }
+
+  const rawQuery = mentionMatch[1] ?? "";
+  const atIndex = textBeforeCaret.lastIndexOf(`@${rawQuery}`);
+
+  if (atIndex < 0) {
+    return null;
+  }
+
+  const normalizedQuery = rawQuery.trim().toLowerCase();
+  const matches = assets.filter((asset) =>
+    asset.name.toLowerCase().includes(normalizedQuery),
+  );
+
+  if (matches.length === 0) {
+    return null;
+  }
+
+  return {
+    media: matches[0]!,
+    start: atIndex,
+    end: caretIndex,
+    query: rawQuery,
+  };
+}
+
 async function uploadProjectFiles(input: {
   projectId: string;
   kind: "asset" | "inspiration";
@@ -77,7 +209,7 @@ async function uploadProjectFiles(input: {
 
   const optimizedFiles = await optimizeImagesForUpload(input.files);
 
-  return (uploadthingClient as any).uploadFiles("assetUploader", {
+  const uploadedFiles = await (uploadthingClient as any).uploadFiles("assetUploader", {
     files: optimizedFiles,
     input: {
       projectId: input.projectId,
@@ -87,6 +219,20 @@ async function uploadProjectFiles(input: {
       Accept: "application/json",
     }),
   });
+
+  await registerUploadedProjectMedia(
+    input.projectId,
+    uploadedFiles.map((file: any) => ({
+      key: file.key,
+      url: file.ufsUrl ?? file.url,
+      name: file.name,
+      mimeType: file.type ?? null,
+      sizeBytes: typeof file.size === "number" ? file.size : null,
+      kind: input.kind,
+    })),
+  );
+
+  return uploadedFiles;
 }
 
 function RunStatusBanner({ run }: { run: GenerationRun | null }) {
@@ -122,17 +268,19 @@ function SlideTile({
   isReference,
   onOpen,
   onReference,
+  onDelete,
 }: {
   slide: SlideRecord;
   isReference: boolean;
   onOpen: (slide: SlideRecord) => void;
   onReference: (slide: SlideRecord) => void;
+  onDelete: (slide: SlideRecord) => void;
 }) {
   return (
     <div
-      className={`rounded-[28px] border bg-[rgba(255,255,255,0.04)] p-4 text-left transition hover:border-white/20 hover:bg-[rgba(255,255,255,0.06)] ${
+      className={`group relative rounded-[28px] border bg-[rgba(255,255,255,0.04)] p-3 text-left transition hover:border-white/20 hover:bg-[rgba(255,255,255,0.06)] ${
         isReference ? "border-[rgba(194,58,131,0.55)]" : "border-white/10"
-      } ${getSelectedRatioPreview(slide.aspectRatio)}`}
+      }`}
       onClick={() => onOpen(slide)}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -143,50 +291,50 @@ function SlideTile({
       role="button"
       tabIndex={0}
     >
-      <div className="flex h-full flex-col gap-3 rounded-[22px] border border-white/8 bg-[rgba(255,255,255,0.03)] p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="font-accent text-xs uppercase tracking-[0.14em] text-[color:var(--color-accent)]">{slide.title}</p>
-            <p className="font-body mt-2 text-[11px] uppercase tracking-[0.12em] text-[color:var(--color-text-tertiary)]">
-              {slide.aspectRatio} • {getStatusLabel(slide.status)}
-            </p>
-          </div>
-          <button
-            className={`font-body inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs uppercase tracking-[0.12em] transition ${
-              isReference
-                ? "border-[rgba(194,58,131,0.55)] bg-[rgba(194,58,131,0.14)] text-white"
-                : "border-white/10 bg-[rgba(255,255,255,0.04)] text-[color:var(--color-text-secondary)] hover:border-white/20 hover:text-[color:var(--color-text)]"
-            }`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onReference(slide);
-            }}
-            type="button"
-          >
-            {isReference ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            {isReference ? "Selected" : "Reference"}
-          </button>
-        </div>
+      <div
+        className="relative overflow-hidden rounded-[22px] border border-white/8 bg-[rgba(255,255,255,0.03)]"
+        style={{ aspectRatio: getAspectRatioStyleValue(slide.aspectRatio) }}
+      >
+        <SlideCanvasPreview fill slide={slide} />
 
-        <div className="min-h-0 flex-1 overflow-hidden rounded-[18px] border border-white/10 bg-[rgba(15,25,31,0.45)]">
-          {slide.status === "completed" && slide.htmlDocument ? (
-            <iframe
-              className="h-full w-full bg-white"
-              sandbox="allow-scripts allow-same-origin"
-              srcDoc={slide.htmlDocument}
-              title={slide.title}
-            />
-          ) : (
-            <div className="flex h-full min-h-[12rem] items-center justify-center px-6 text-center">
-              <div>
-                {slide.status !== "failed" && <Loader2 className="mx-auto h-5 w-5 animate-spin text-[color:var(--color-accent)]" />}
-                <p className="font-subtitle mt-3 text-base text-[color:var(--color-text)]">{getStatusLabel(slide.status)}</p>
-                <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">
-                  {slide.error ?? "The backend is building this slide variant now."}
-                </p>
-              </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0">
+          <div className="h-28 bg-gradient-to-t from-black/90 via-black/55 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4">
+            <div className="min-w-0">
+              <p className="font-accent truncate text-xs uppercase tracking-[0.14em] text-[color:var(--color-accent)]">{slide.title}</p>
+              <p className="font-body mt-2 text-[11px] uppercase tracking-[0.12em] text-white/70">
+                {slide.aspectRatio} • {getStatusLabel(slide.status)}
+              </p>
             </div>
-          )}
+            <div className="pointer-events-auto flex items-center gap-2 opacity-0 transition group-hover:opacity-100">
+            <button
+              aria-label={isReference ? "Reference selected" : "Use as reference"}
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition ${
+                isReference
+                  ? "border-[rgba(194,58,131,0.55)] bg-[rgba(194,58,131,0.16)] text-white"
+                  : "border-white/10 bg-[rgba(255,255,255,0.04)] text-[color:var(--color-text-secondary)] hover:border-white/20 hover:text-[color:var(--color-text)]"
+              }`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onReference(slide);
+              }}
+              type="button"
+            >
+              {isReference ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              aria-label="Delete slide"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-[rgba(255,255,255,0.04)] text-[color:var(--color-text-secondary)] transition hover:border-[rgba(248,101,64,0.45)] hover:text-[color:var(--color-accent)]"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete(slide);
+              }}
+              type="button"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -195,6 +343,7 @@ function SlideTile({
 
 export default function SlidesMakerPage() {
   const queryClient = useQueryClient();
+  const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [view, setView] = useState<AppView>("projects");
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("prompt");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -211,6 +360,9 @@ export default function SlidesMakerPage() {
   const [isUploadingInspirations, setIsUploadingInspirations] = useState(false);
   const [isUploadingAssets, setIsUploadingAssets] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [promptCaretIndex, setPromptCaretIndex] = useState(0);
+  const [renamingAssetId, setRenamingAssetId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const projectsQuery = useQuery({
     queryKey: ["projects"],
@@ -337,6 +489,7 @@ export default function SlidesMakerPage() {
   const currentProject = currentData?.project ?? null;
   const currentAssets = currentData?.assets ?? [];
   const currentInspirations = currentData?.inspirations ?? [];
+  const currentGeneratedImages = currentData?.generatedImages ?? [];
   const currentIdeas = currentData?.latestIdeas ?? [];
   const currentSlides = currentData?.slides ?? [];
 
@@ -347,6 +500,21 @@ export default function SlidesMakerPage() {
 
     return currentData?.generationRuns.find((run) => run.status !== "completed" && run.status !== "failed") ?? null;
   }, [currentData?.generationRuns, generationRunQuery.data?.run]);
+
+  const assetMentionSuggestions = useMemo(() => {
+    const textBeforeCaret = prompt.slice(0, promptCaretIndex);
+    const mentionMatch = /(?:^|\s)@([^\s@]*)$/.exec(textBeforeCaret);
+
+    if (!mentionMatch) {
+      return [];
+    }
+
+    const rawQuery = (mentionMatch[1] ?? "").trim().toLowerCase();
+
+    return currentAssets
+      .filter((asset) => asset.name.toLowerCase().includes(rawQuery))
+      .slice(0, 6);
+  }, [currentAssets, prompt, promptCaretIndex]);
 
   useEffect(() => {
     if (!selectedProjectId && projectsQuery.data?.projects.length) {
@@ -413,6 +581,127 @@ export default function SlidesMakerPage() {
     }
   }
 
+  function insertAssetMention(asset: ProjectMedia) {
+    const textarea = promptTextareaRef.current;
+    const caretIndex = textarea?.selectionStart ?? prompt.length;
+    const match = getAssetMentionMatch(prompt, caretIndex, currentAssets);
+
+    if (!match) {
+      setPrompt((current) => `${current}${current.endsWith(" ") || current.length === 0 ? "" : " "}@${asset.name} `);
+      return;
+    }
+
+    const nextPrompt = `${prompt.slice(0, match.start)}@${asset.name} ${prompt.slice(match.end)}`;
+    setPrompt(nextPrompt);
+
+    requestAnimationFrame(() => {
+      if (!textarea) {
+        return;
+      }
+
+      const nextCaret = match.start + asset.name.length + 2;
+      textarea.focus();
+      textarea.setSelectionRange(nextCaret, nextCaret);
+      setPromptCaretIndex(nextCaret);
+    });
+  }
+
+  const renameAssetMutation = useMutation({
+    mutationFn: async ({ mediaId, name }: { mediaId: string; name: string }) => {
+      if (!selectedProjectId) {
+        throw new Error("Select a project first.");
+      }
+
+      return renameProjectMedia(selectedProjectId, mediaId, name);
+    },
+    onSuccess: async () => {
+      setRenamingAssetId(null);
+      setRenameValue("");
+      await queryClient.invalidateQueries({ queryKey: ["project", selectedProjectId] });
+    },
+    onError: (error) => {
+      setFormError(error instanceof Error ? error.message : "Failed to rename asset.");
+    },
+  });
+
+  const deleteProjectMutation = useMutation({
+    mutationFn: async (projectId: string) => deleteProject(projectId),
+    onSuccess: async (_, projectId) => {
+      const remainingProjects = (projectsQuery.data?.projects ?? []).filter((project) => project.id !== projectId);
+      const nextProjectId = remainingProjects[0]?.id ?? null;
+
+      setSelectedProjectId(nextProjectId);
+      setSelectedOutput(null);
+      setActiveRunId(null);
+      setSelectedReferenceSlideId(null);
+      setPrompt("");
+
+      if (view === "workspace") {
+        setView(nextProjectId ? "workspace" : "projects");
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["projects"] }),
+        queryClient.invalidateQueries({ queryKey: ["project", projectId] }),
+      ]);
+    },
+    onError: (error) => {
+      setFormError(error instanceof Error ? error.message : "Failed to delete project.");
+    },
+  });
+
+  const deleteIdeaMutation = useMutation({
+    mutationFn: async (ideaId: string) => {
+      if (!selectedProjectId) {
+        throw new Error("Select a project first.");
+      }
+
+      return deleteIdea(selectedProjectId, ideaId);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["project", selectedProjectId] });
+    },
+    onError: (error) => {
+      setFormError(error instanceof Error ? error.message : "Failed to delete idea.");
+    },
+  });
+
+  const deleteMediaMutation = useMutation({
+    mutationFn: async (mediaId: string) => {
+      if (!selectedProjectId) {
+        throw new Error("Select a project first.");
+      }
+
+      return deleteProjectMedia(selectedProjectId, mediaId);
+    },
+    onSuccess: async () => {
+      if (selectedReferenceSlideId) {
+        setSelectedReferenceSlideId((current) => current);
+      }
+      await queryClient.invalidateQueries({ queryKey: ["project", selectedProjectId] });
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+    onError: (error) => {
+      setFormError(error instanceof Error ? error.message : "Failed to delete media.");
+    },
+  });
+
+  const deleteSlideMutation = useMutation({
+    mutationFn: async (slideId: string) => deleteSlide(slideId),
+    onSuccess: async (_, slideId) => {
+      setSelectedOutput((current) => (current?.id === slideId ? null : current));
+      setSelectedReferenceSlideId((current) => (current === slideId ? null : current));
+      await queryClient.invalidateQueries({ queryKey: ["project", selectedProjectId] });
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      if (activeRunId) {
+        await queryClient.invalidateQueries({ queryKey: ["generation-run", activeRunId] });
+      }
+    },
+    onError: (error) => {
+      setFormError(error instanceof Error ? error.message : "Failed to delete slide.");
+    },
+  });
+
   if (view === "projects") {
     return (
       <main className="min-h-screen bg-[color:var(--color-bg)] px-4 py-8 sm:px-6 sm:py-10">
@@ -441,18 +730,36 @@ export default function SlidesMakerPage() {
               ) : projectsQuery.data?.projects.length ? (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {projectsQuery.data.projects.map((project) => (
-                    <button
+                    <div
                       key={project.id}
-                      className="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-5 text-left transition hover:border-white/20 hover:bg-[rgba(255,255,255,0.06)]"
-                      onClick={() => {
-                        setSelectedProjectId(project.id);
-                        setView("workspace");
-                      }}
-                      type="button"
+                      className="group rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.04)] p-5 text-left transition hover:border-white/20 hover:bg-[rgba(255,255,255,0.06)]"
                     >
-                      <p className="font-accent text-xs uppercase tracking-[0.16em] text-[color:var(--color-primary)]">Project</p>
-                      <h3 className="font-title mt-3 text-2xl tracking-[-0.05em] text-[color:var(--color-text)]">{project.name}</h3>
-                      <p className="font-body mt-3 line-clamp-4 text-sm leading-7 text-[color:var(--color-text-secondary)]">{project.about}</p>
+                      <div className="flex items-start justify-between gap-3">
+                        <button
+                          className="min-w-0 flex-1 text-left"
+                          onClick={() => {
+                            setSelectedProjectId(project.id);
+                            setView("workspace");
+                          }}
+                          type="button"
+                        >
+                          <p className="font-accent text-xs uppercase tracking-[0.16em] text-[color:var(--color-primary)]">Project</p>
+                          <h3 className="font-title mt-3 text-2xl tracking-[-0.05em] text-[color:var(--color-text)]">{project.name}</h3>
+                          <p className="font-body mt-3 line-clamp-4 text-sm leading-7 text-[color:var(--color-text-secondary)]">{project.about}</p>
+                        </button>
+                        <button
+                          aria-label="Delete project"
+                          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-[rgba(0,0,0,0.18)] text-[color:var(--color-text-secondary)] opacity-0 transition hover:border-[rgba(248,101,64,0.45)] hover:text-[color:var(--color-accent)] group-hover:opacity-100"
+                          onClick={() => {
+                            if (window.confirm(`Delete project "${project.name}"? This will remove its ideas, media, and slides.`)) {
+                              deleteProjectMutation.mutate(project.id);
+                            }
+                          }}
+                          type="button"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <span className="font-body rounded-full border border-white/10 px-3 py-1 text-xs text-[color:var(--color-text-secondary)]">
                           Assets: {project.assetCount}
@@ -461,7 +768,7 @@ export default function SlidesMakerPage() {
                           Slides: {project.slideCount}
                         </span>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -608,6 +915,21 @@ export default function SlidesMakerPage() {
             <Button className="rounded-full px-5" variant="outline" onClick={() => setView("config")}>
               New Project
             </Button>
+            {currentProject && (
+              <Button
+                className="rounded-full px-5"
+                disabled={deleteProjectMutation.isPending}
+                onClick={() => {
+                  if (window.confirm(`Delete project "${currentProject.name}"? This will remove its ideas, media, and slides.`)) {
+                    deleteProjectMutation.mutate(currentProject.id);
+                  }
+                }}
+                variant="outline"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Project
+              </Button>
+            )}
           </div>
         </header>
 
@@ -648,11 +970,53 @@ export default function SlidesMakerPage() {
                 {workspaceMode === "prompt" ? (
                   <>
                     <textarea
+                      ref={promptTextareaRef}
                       className="font-body mt-4 min-h-40 w-full resize-none rounded-[22px] border border-white/8 bg-[rgba(255,255,255,0.02)] px-4 py-4 text-sm leading-7 text-[color:var(--color-text)] outline-none placeholder:text-[color:var(--color-text-tertiary)]"
-                      onChange={(event) => setPrompt(event.target.value)}
-                      placeholder="Describe the slide, composition, message, and style."
+                      onChange={(event) => {
+                        setPrompt(event.target.value);
+                        setPromptCaretIndex(event.target.selectionStart ?? event.target.value.length);
+                      }}
+                      onClick={(event) => setPromptCaretIndex(event.currentTarget.selectionStart ?? prompt.length)}
+                      onKeyUp={(event) => setPromptCaretIndex(event.currentTarget.selectionStart ?? prompt.length)}
+                      placeholder="Describe the slide, composition, message, and style. Type @ to reference an uploaded asset by name."
                       value={prompt}
                     />
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="font-body rounded-full border border-white/10 bg-[rgba(255,255,255,0.03)] px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-[color:var(--color-text-tertiary)]">
+                        Type @ for asset suggestions
+                      </span>
+                      {currentAssets.length > 0 && (
+                        <span className="font-body text-xs text-[color:var(--color-text-secondary)]">
+                          {currentAssets.length} uploaded asset{currentAssets.length > 1 ? "s" : ""} available for exact insertion.
+                        </span>
+                      )}
+                    </div>
+
+                    {assetMentionSuggestions.length > 0 && (
+                      <div className="mt-3 rounded-[20px] border border-white/10 bg-[rgba(255,255,255,0.03)] p-2">
+                        <p className="font-body px-2 pb-2 text-[11px] uppercase tracking-[0.14em] text-[color:var(--color-text-tertiary)]">
+                          Asset references
+                        </p>
+                        <div className="space-y-1">
+                          {assetMentionSuggestions.map((asset) => (
+                            <button
+                              key={asset.id}
+                              className="flex w-full items-center gap-3 rounded-[16px] px-3 py-2 text-left transition hover:bg-[rgba(255,255,255,0.05)]"
+                              onClick={() => insertAssetMention(asset)}
+                              type="button"
+                            >
+                              <div className="h-10 w-10 overflow-hidden rounded-[12px] border border-white/10 bg-[rgba(255,255,255,0.04)]">
+                                <img alt={asset.name} className="h-full w-full object-cover" src={asset.url} />
+                              </div>
+                              <div>
+                                <p className="font-body text-sm text-[color:var(--color-text)]">{asset.name}</p>
+                                <p className="font-body text-xs text-[color:var(--color-text-secondary)]">@{asset.name}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="mt-4 flex items-center justify-between gap-3">
                       <button
@@ -702,20 +1066,34 @@ export default function SlidesMakerPage() {
                         </div>
                       ) : (
                         currentIdeas.map((idea) => (
-                          <div key={idea.id} className="rounded-[22px] border border-white/10 bg-[rgba(255,255,255,0.03)] p-4">
+                          <div key={idea.id} className="group rounded-[22px] border border-white/10 bg-[rgba(255,255,255,0.03)] p-4 transition hover:border-white/20">
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <p className="font-subtitle text-base text-[color:var(--color-text)]">{idea.title}</p>
                                 <p className="font-body mt-2 text-sm leading-7 text-[color:var(--color-text-secondary)]">{idea.prompt}</p>
                               </div>
-                              <Button
-                                className="shrink-0 rounded-full px-4"
-                                disabled={createGenerationMutation.isPending}
-                                onClick={() => createGenerationMutation.mutate({ prompt: idea.prompt, trigger: "idea" })}
-                                type="button"
-                              >
-                                Generate
-                              </Button>
+                              <div className="flex shrink-0 items-center gap-2">
+                                <button
+                                  aria-label="Delete idea"
+                                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[rgba(0,0,0,0.18)] text-[color:var(--color-text-secondary)] opacity-0 transition hover:border-[rgba(248,101,64,0.45)] hover:text-[color:var(--color-accent)] group-hover:opacity-100"
+                                  onClick={() => {
+                                    if (window.confirm(`Delete idea "${idea.title}"?`)) {
+                                      deleteIdeaMutation.mutate(idea.id);
+                                    }
+                                  }}
+                                  type="button"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                                <Button
+                                  className="shrink-0 rounded-full px-4"
+                                  disabled={createGenerationMutation.isPending}
+                                  onClick={() => createGenerationMutation.mutate({ prompt: idea.prompt, trigger: "idea" })}
+                                  type="button"
+                                >
+                                  Generate
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         ))
@@ -857,6 +1235,11 @@ export default function SlidesMakerPage() {
                     <SlideTile
                       isReference={selectedReferenceSlideId === slide.id}
                       key={slide.id}
+                      onDelete={(item) => {
+                        if (window.confirm(`Delete slide "${item.title}"?`)) {
+                          deleteSlideMutation.mutate(item.id);
+                        }
+                      }}
                       onOpen={setSelectedOutput}
                       onReference={(item) =>
                         setSelectedReferenceSlideId((current) => (current === item.id ? null : item.id))
@@ -869,21 +1252,104 @@ export default function SlidesMakerPage() {
 
               <div className="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.03)] p-4">
                 <p className="font-subtitle text-lg text-[color:var(--color-text)]">Project Assets</p>
-                <div className="mt-4 flex flex-wrap gap-3">
+                <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">
+                  These are reusable across prompts. Type <span className="text-[color:var(--color-text)]">@</span> in the prompt box to reference them by name.
+                </p>
+                <div className="mt-5 flex flex-wrap gap-4">
                   {currentAssets.length ? (
                     currentAssets.map((asset: ProjectMedia) => (
-                      <div key={asset.id} className="w-[120px]">
-                        <div className="aspect-square overflow-hidden rounded-[18px] border border-white/10 bg-[rgba(255,255,255,0.03)]">
-                          <img alt={asset.name} className="h-full w-full object-cover" src={asset.url} />
+                      <div
+                        key={asset.id}
+                        className="group relative w-[176px] overflow-hidden rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.03)] shadow-[0_18px_60px_-40px_rgba(0,0,0,0.8)] transition hover:border-white/20"
+                      >
+                        <div className="aspect-square overflow-hidden bg-[rgba(255,255,255,0.03)]">
+                          <img alt={asset.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" src={asset.url} />
                         </div>
-                        <p className="font-body mt-2 truncate text-xs text-[color:var(--color-text-secondary)]">{asset.name}</p>
+                        {renamingAssetId === asset.id ? (
+                          <div className="space-y-2 p-3">
+                            <Input
+                              className="h-10 rounded-xl px-3 text-xs"
+                              onChange={(event) => setRenameValue(event.target.value)}
+                              value={renameValue}
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                className="h-8 rounded-full px-3 text-xs"
+                                disabled={renameAssetMutation.isPending || !renameValue.trim()}
+                                onClick={() =>
+                                  renameAssetMutation.mutate({
+                                    mediaId: asset.id,
+                                    name: renameValue.trim(),
+                                  })
+                                }
+                                type="button"
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                className="h-8 rounded-full px-3 text-xs"
+                                onClick={() => {
+                                  setRenamingAssetId(null);
+                                  setRenameValue("");
+                                }}
+                                type="button"
+                                variant="outline"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="pointer-events-none absolute inset-x-0 bottom-0">
+                            <div className="h-24 bg-gradient-to-t from-black/90 via-black/55 to-transparent opacity-95 transition group-hover:from-black/95" />
+                            <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-3">
+                              <div className="min-w-0">
+                                <p className="font-body truncate text-sm text-white">{asset.name}</p>
+                                <p className="font-body mt-1 truncate text-[11px] text-white/70">@{asset.name}</p>
+                              </div>
+                              <div className="pointer-events-auto flex items-center gap-2 opacity-0 transition group-hover:opacity-100">
+                                <button
+                                  aria-label="Insert asset mention"
+                                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/35 text-white/80 transition hover:border-white/30 hover:text-white"
+                                  onClick={() => insertAssetMention(asset)}
+                                  type="button"
+                                >
+                                  <AtSign className="h-4 w-4" />
+                                </button>
+                                <button
+                                  aria-label="Rename asset"
+                                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/35 text-white/80 transition hover:border-white/30 hover:text-white"
+                                  onClick={() => {
+                                    setRenamingAssetId(asset.id);
+                                    setRenameValue(asset.name);
+                                  }}
+                                  type="button"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                                <button
+                                  aria-label="Delete asset"
+                                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/35 text-white/80 transition hover:border-[rgba(248,101,64,0.55)] hover:text-[color:var(--color-accent)]"
+                                  onClick={() => {
+                                    if (window.confirm(`Delete asset "${asset.name}"?`)) {
+                                      deleteMediaMutation.mutate(asset.id);
+                                    }
+                                  }}
+                                  type="button"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))
                   ) : (
                     <p className="font-body text-sm text-[color:var(--color-text-secondary)]">No assets attached to this project yet.</p>
                   )}
 
-                  <label className="flex h-[120px] w-[120px] cursor-pointer flex-col items-center justify-center rounded-[18px] border border-dashed border-white/15 bg-[rgba(255,255,255,0.03)] text-center transition hover:border-white/25">
+                  <label className="flex h-[176px] w-[176px] cursor-pointer flex-col items-center justify-center rounded-[24px] border border-dashed border-white/15 bg-[rgba(255,255,255,0.03)] text-center transition hover:border-white/25 hover:bg-[rgba(255,255,255,0.05)]">
                     <ImagePlus className="h-5 w-5 text-[color:var(--color-accent)]" />
                     <span className="font-body mt-2 px-3 text-xs leading-5 text-[color:var(--color-text-secondary)]">Upload new asset</span>
                     <input
@@ -900,6 +1366,60 @@ export default function SlidesMakerPage() {
                 {isUploadingAssets && (
                   <p className="font-body mt-3 text-sm leading-6 text-[color:var(--color-text-secondary)]">Uploading project assets...</p>
                 )}
+              </div>
+
+              <div className="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.03)] p-4">
+                <p className="font-subtitle text-lg text-[color:var(--color-text)]">Generated Images</p>
+                <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">
+                  Images produced by Gemini for this project. You can remove any of them when they are no longer useful.
+                </p>
+                <div className="mt-5 flex flex-wrap gap-4">
+                  {currentGeneratedImages.length ? (
+                    currentGeneratedImages.map((asset: ProjectMedia) => (
+                      <div
+                        key={asset.id}
+                        className="group relative w-[176px] overflow-hidden rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.03)] shadow-[0_18px_60px_-40px_rgba(0,0,0,0.8)] transition hover:border-white/20"
+                      >
+                        <div className="aspect-square overflow-hidden bg-[rgba(255,255,255,0.03)]">
+                          <img alt={asset.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" src={asset.url} />
+                        </div>
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0">
+                          <div className="h-24 bg-gradient-to-t from-black/90 via-black/55 to-transparent opacity-95 transition group-hover:from-black/95" />
+                          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-3">
+                            <div className="min-w-0">
+                              <p className="font-body truncate text-sm text-white">{asset.name}</p>
+                              <p className="font-body mt-1 truncate text-[11px] text-white/70">AI generated</p>
+                            </div>
+                            <div className="pointer-events-auto flex items-center gap-2 opacity-0 transition group-hover:opacity-100">
+                              <button
+                                aria-label="Insert generated image reference"
+                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/35 text-white/80 transition hover:border-white/30 hover:text-white"
+                                onClick={() => insertAssetMention(asset)}
+                                type="button"
+                              >
+                                <AtSign className="h-4 w-4" />
+                              </button>
+                              <button
+                                aria-label="Delete generated image"
+                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/35 text-white/80 transition hover:border-[rgba(248,101,64,0.55)] hover:text-[color:var(--color-accent)]"
+                                onClick={() => {
+                                  if (window.confirm(`Delete generated image "${asset.name}"?`)) {
+                                    deleteMediaMutation.mutate(asset.id);
+                                  }
+                                }}
+                                type="button"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="font-body text-sm text-[color:var(--color-text-secondary)]">No generated images saved yet.</p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -932,28 +1452,10 @@ export default function SlidesMakerPage() {
 
             <div className="mt-6 flex items-center justify-center rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.03)] p-6">
               <div
-                className={`w-full max-w-2xl overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.04)] ${getSelectedRatioPreview(
-                  selectedOutput.aspectRatio,
-                )}`}
+                className="relative w-full max-w-4xl overflow-hidden rounded-[28px]"
+                style={{ aspectRatio: getAspectRatioStyleValue(selectedOutput.aspectRatio) }}
               >
-                {selectedOutput.status === "completed" && selectedOutput.htmlDocument ? (
-                  <iframe
-                    className="h-full w-full bg-white"
-                    sandbox="allow-scripts allow-same-origin"
-                    srcDoc={selectedOutput.htmlDocument}
-                    title={selectedOutput.title}
-                  />
-                ) : (
-                  <div className="flex h-full min-h-[22rem] items-center justify-center px-6 text-center">
-                    <div>
-                      {selectedOutput.status !== "failed" && <Loader2 className="mx-auto h-6 w-6 animate-spin text-[color:var(--color-accent)]" />}
-                      <p className="font-subtitle mt-4 text-lg text-[color:var(--color-text)]">{getStatusLabel(selectedOutput.status)}</p>
-                      <p className="font-body mt-3 text-sm leading-7 text-[color:var(--color-text-secondary)]">
-                        {selectedOutput.error ?? "This slide is still being generated."}
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <SlideCanvasPreview fill slide={selectedOutput} />
               </div>
             </div>
           </div>

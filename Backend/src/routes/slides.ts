@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../lib/api-auth.js";
-import { getSlideById } from "../lib/projects.js";
+import { deleteSlideById, getSlideById } from "../lib/projects.js";
 import { createSlideDownloadFilename } from "../lib/slide-html.js";
 import { renderSlideToPng } from "../lib/slide-renderer.js";
 
@@ -49,6 +49,20 @@ slidesRouter.get("/:slideId/download", async (req, res) => {
       error: error instanceof Error ? error.message : "Failed to render slide download.",
     });
   }
+});
+
+slidesRouter.delete("/:slideId", async (req, res) => {
+  const removed = await deleteSlideById(req.params.slideId);
+
+  if (!removed) {
+    return res.status(404).json({
+      error: "Slide not found.",
+    });
+  }
+
+  return res.json({
+    success: true,
+  });
 });
 
 export { slidesRouter };

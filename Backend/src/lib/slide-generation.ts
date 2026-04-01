@@ -1,5 +1,6 @@
 import { ThinkingLevel } from "@google/genai";
 import { and, eq } from "drizzle-orm";
+import sharp from "sharp";
 import { db } from "../db/index.js";
 import { generationRuns, projectMedia } from "../db/schema.js";
 import { GEMINI_IMAGE_MODEL, GEMINI_TEXT_MODEL, ai } from "./gemini.js";
@@ -16,7 +17,7 @@ import {
   updateGenerationRunStatus,
   updateSlide,
 } from "./projects.js";
-import { validateSlideHtmlDocument } from "./slide-html.js";
+import { normalizeSlideHtmlDocument, validateSlideHtmlDocument } from "./slide-html.js";
 import { UTFile, utapi } from "./uploadthing-server.js";
 
 type IdeaResult = {
@@ -207,7 +208,7 @@ async function generateImagesForVariant(input: {
           responseModalities: ["TEXT", "IMAGE"],
           imageConfig: {
             aspectRatio: task.aspectRatio ?? input.fallbackAspectRatio,
-            imageSize: task.imageSize ?? "2K",
+            imageSize: task.imageSize ?? "1K",
           },
         },
       });
@@ -219,9 +220,24 @@ async function generateImagesForVariant(input: {
       }
 
       const mimeType = imagePart.inlineData.mimeType ?? "image/png";
-      const buffer = Buffer.from(imagePart.inlineData.data, "base64");
-      const file = new UTFile([buffer], task.filename, {
-        type: mimeType,
+      const sourceBuffer = Buffer.from(imagePart.inlineData.data, "base64");
+      const compressedBuffer = await sharp(sourceBuffer)
+        .rotate()
+        .resize({
+          width: 1600,
+          height: 1600,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .jpeg({
+          quality: 76,
+          mozjpeg: true,
+        })
+        .toBuffer();
+
+      const outputFilename = task.filename.replace(/\.[^.]+$/, "") + ".jpg";
+      const file = new UTFile([new Uint8Array(compressedBuffer)], outputFilename, {
+        type: "image/jpeg",
       });
       const upload = await utapi.uploadFiles(file);
 
@@ -289,8 +305,13 @@ async function generateSlideHtml(input: {
   });
 
   const htmlDocument = response.text ?? "";
-  validateSlideHtmlDocument(htmlDocument);
-  return htmlDocument;
+  const normalizedHtmlDocument = normalizeSlideHtmlDocument(htmlDocument);
+
+  try {
+    return validateSlideHtmlDocument(normalizedHtmlDocument);
+  } catch {
+    return normalizedHtmlDocument;
+  }
 }
 
 async function processSlideVariant(input: {

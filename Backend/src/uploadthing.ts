@@ -7,12 +7,17 @@ import { persistUploadedProjectMedia } from "./lib/slide-generation.js";
 const f = createUploadthing();
 
 export const uploadRouter = {
-  assetUploader: f({
-    image: {
-      maxFileSize: "4MB",
-      maxFileCount: 10,
+  assetUploader: f(
+    {
+      image: {
+        maxFileSize: "4MB",
+        maxFileCount: 10,
+      },
     },
-  })
+    {
+      awaitServerData: false,
+    },
+  )
     .input(
       z.object({
         projectId: z.string().min(1),

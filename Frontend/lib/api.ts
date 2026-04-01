@@ -174,6 +174,24 @@ export async function createProject(input: { name: string; about: string }) {
   return readJson<ProjectDetail>(response);
 }
 
+export async function deleteProject(projectId: string) {
+  const response = await fetch(`${API_URL}/api/projects/${projectId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+
+  return readJson<{ success: boolean }>(response);
+}
+
+export async function deleteProjectMedia(projectId: string, mediaId: string) {
+  const response = await fetch(`${API_URL}/api/projects/${projectId}/media/${mediaId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+
+  return readJson<{ success: boolean }>(response);
+}
+
 export async function getProject(projectId: string) {
   const response = await fetch(`${API_URL}/api/projects/${projectId}`, {
     credentials: "include",
@@ -193,6 +211,24 @@ export async function generateIdeas(projectId: string, seed?: string) {
   });
 
   return readJson<{ batch: IdeaBatch; ideas: IdeaItem[] }>(response);
+}
+
+export async function deleteIdea(projectId: string, ideaId: string) {
+  const response = await fetch(`${API_URL}/api/projects/${projectId}/ideas/${ideaId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+
+  return readJson<{ success: boolean }>(response);
+}
+
+export async function deleteSlide(slideId: string) {
+  const response = await fetch(`${API_URL}/api/slides/${slideId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+
+  return readJson<{ success: boolean }>(response);
 }
 
 export async function createGeneration(
@@ -223,6 +259,42 @@ export async function getGenerationRun(runId: string) {
   });
 
   return readJson<{ run: GenerationRun; slides: SlideRecord[] }>(response);
+}
+
+export async function renameProjectMedia(projectId: string, mediaId: string, name: string) {
+  const response = await fetch(`${API_URL}/api/projects/${projectId}/media/${mediaId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name }),
+  });
+
+  return readJson<{ media: ProjectMedia }>(response);
+}
+
+export async function registerUploadedProjectMedia(
+  projectId: string,
+  uploads: Array<{
+    key: string;
+    url: string;
+    name: string;
+    mimeType?: string | null;
+    sizeBytes?: number | null;
+    kind: "asset" | "inspiration";
+  }>,
+) {
+  const response = await fetch(`${API_URL}/api/projects/${projectId}/media/register`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ uploads }),
+  });
+
+  return readJson<{ media: ProjectMedia[] }>(response);
 }
 
 export function getSlideDownloadUrl(slideId: string) {

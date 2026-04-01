@@ -14,6 +14,7 @@ import {
   type SlideMediaRole,
 } from "../db/schema.js";
 import { createId } from "./ids.js";
+import { utapi } from "./uploadthing-server.js";
 
 export async function listProjects() {
   const rows = await db
@@ -196,6 +197,45 @@ export async function getSlideById(slideId: string) {
   return rows[0] ?? null;
 }
 
+export async function deleteSlideById(slideId: string) {
+  const generatedMediaRows = await db
+    .select({
+      id: projectMedia.id,
+      storageProvider: projectMedia.storageProvider,
+      uploadthingKey: projectMedia.uploadthingKey,
+    })
+    .from(slideMedia)
+    .innerJoin(projectMedia, eq(slideMedia.mediaId, projectMedia.id))
+    .where(
+      and(
+        eq(slideMedia.slideId, slideId),
+        eq(slideMedia.role, "generated_image"),
+        eq(projectMedia.kind, "generated_image"),
+      ),
+    );
+
+  const rows = await db.delete(slides).where(eq(slides.id, slideId)).returning();
+  const removed = rows[0] ?? null;
+
+  if (!removed) {
+    return null;
+  }
+
+  for (const media of generatedMediaRows) {
+    if (media.storageProvider === "uploadthing" && media.uploadthingKey) {
+      await utapi.deleteFiles(media.uploadthingKey);
+    }
+  }
+
+  const generatedMediaIds = [...new Set(generatedMediaRows.map((media) => media.id))];
+
+  if (generatedMediaIds.length > 0) {
+    await db.delete(projectMedia).where(inArray(projectMedia.id, generatedMediaIds));
+  }
+
+  return removed;
+}
+
 export async function updateGenerationRunStatus(runId: string, status: GenerationStatus, error?: string | null) {
   await db
     .update(generationRuns)
@@ -296,4 +336,60 @@ export async function getMediaByIds(mediaIds: string[]) {
   }
 
   return db.select().from(projectMedia).where(inArray(projectMedia.id, mediaIds));
+}
+
+export async function renameProjectMedia(input: {
+  projectId: string;
+  mediaId: string;
+  name: string;
+}) {
+  const rows = await db
+    .update(projectMedia)
+    .set({
+      name: input.name,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(projectMedia.projectId, input.projectId), eq(projectMedia.id, input.mediaId)))
+    .returning();
+
+  return rows[0] ?? null;
+}
+
+export async function deleteProjectMedia(input: { projectId: string; mediaId: string }) {
+  const existingRows = await db
+    .select()
+    .from(projectMedia)
+    .where(and(eq(projectMedia.projectId, input.projectId), eq(projectMedia.id, input.mediaId)))
+    .limit(1);
+
+  const media = existingRows[0] ?? null;
+
+  if (!media) {
+    return null;
+  }
+
+  if (media.storageProvider === "uploadthing" && media.uploadthingKey) {
+    await utapi.deleteFiles(media.uploadthingKey);
+  }
+
+  const rows = await db
+    .delete(projectMedia)
+    .where(and(eq(projectMedia.projectId, input.projectId), eq(projectMedia.id, input.mediaId)))
+    .returning();
+
+  return rows[0] ?? null;
+}
+
+export async function deleteProject(projectId: string) {
+  const rows = await db.delete(projects).where(eq(projects.id, projectId)).returning();
+  return rows[0] ?? null;
+}
+
+export async function deleteIdeaItem(projectId: string, ideaId: string) {
+  const rows = await db
+    .delete(ideaItems)
+    .where(and(eq(ideaItems.projectId, projectId), eq(ideaItems.id, ideaId)))
+    .returning();
+
+  return rows[0] ?? null;
 }
