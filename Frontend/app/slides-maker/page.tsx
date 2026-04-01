@@ -61,6 +61,25 @@ function getAspectRatioStyleValue(aspectRatio: string) {
   return aspectRatio.replace(":", " / ");
 }
 
+function getSlideViewportDimensions(aspectRatio: string) {
+  switch (aspectRatio) {
+    case "16:9":
+      return { width: 1920, height: 1080 };
+    case "9:16":
+      return { width: 1080, height: 1920 };
+    case "1:1":
+      return { width: 1400, height: 1400 };
+    case "4:5":
+      return { width: 1200, height: 1500 };
+    case "3:4":
+      return { width: 1200, height: 1600 };
+    case "4:3":
+      return { width: 1600, height: 1200 };
+    default:
+      return { width: 1200, height: 1500 };
+  }
+}
+
 function getStatusLabel(status: GenerationStatus) {
   switch (status) {
     case "queued":
@@ -125,32 +144,93 @@ function createPreviewHtmlDocument(htmlDocument: string) {
 function SlideCanvasPreview({
   slide,
   fill = false,
+  interactive = true,
   minHeightClass = "min-h-[18rem]",
 }: {
   slide: SlideRecord;
   fill?: boolean;
+  interactive?: boolean;
   minHeightClass?: string;
 }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const viewport = getSlideViewportDimensions(slide.aspectRatio);
+
+  useEffect(() => {
+    const element = containerRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    const updateSize = () => {
+      const rect = element.getBoundingClientRect();
+      setContainerSize({
+        width: rect.width,
+        height: rect.height,
+      });
+    };
+
+    updateSize();
+
+    const observer = new ResizeObserver(() => updateSize());
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
+  const scale =
+    containerSize.width > 0 && containerSize.height > 0
+      ? Math.min(containerSize.width / viewport.width, containerSize.height / viewport.height)
+      : 1;
+
   return (
     <div
+      ref={containerRef}
       className={`overflow-hidden rounded-[22px] border border-white/10 bg-[rgba(15,25,31,0.45)] ${
         fill ? "absolute inset-0 h-full w-full" : `relative ${minHeightClass}`
       }`}
     >
       {slide.status === "completed" && slide.htmlDocument ? (
-        <iframe
-          className="block h-full w-full bg-transparent"
-          sandbox="allow-scripts allow-same-origin"
-          srcDoc={createPreviewHtmlDocument(slide.htmlDocument)}
-          title={slide.title}
-        />
+        <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+          <div
+            className={`${interactive ? "" : "pointer-events-none select-none"}`}
+            style={{
+              width: `${viewport.width}px`,
+              height: `${viewport.height}px`,
+              transform: `scale(${scale})`,
+              transformOrigin: "center center",
+              flex: "0 0 auto",
+            }}
+          >
+            <iframe
+              className="block h-full w-full bg-transparent"
+              sandbox="allow-scripts allow-same-origin"
+              srcDoc={createPreviewHtmlDocument(slide.htmlDocument)}
+              title={slide.title}
+            />
+          </div>
+        </div>
       ) : slide.htmlDocument ? (
-        <iframe
-          className="block h-full w-full bg-transparent"
-          sandbox="allow-scripts allow-same-origin"
-          srcDoc={createPreviewHtmlDocument(slide.htmlDocument)}
-          title={slide.title}
-        />
+        <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+          <div
+            className={`${interactive ? "" : "pointer-events-none select-none"}`}
+            style={{
+              width: `${viewport.width}px`,
+              height: `${viewport.height}px`,
+              transform: `scale(${scale})`,
+              transformOrigin: "center center",
+              flex: "0 0 auto",
+            }}
+          >
+            <iframe
+              className="block h-full w-full bg-transparent"
+              sandbox="allow-scripts allow-same-origin"
+              srcDoc={createPreviewHtmlDocument(slide.htmlDocument)}
+              title={slide.title}
+            />
+          </div>
+        </div>
       ) : (
         <div className="flex h-full min-h-[12rem] items-center justify-center px-6 text-center">
           <div>
@@ -295,7 +375,7 @@ function SlideTile({
         className="relative overflow-hidden rounded-[22px] border border-white/8 bg-[rgba(255,255,255,0.03)]"
         style={{ aspectRatio: getAspectRatioStyleValue(slide.aspectRatio) }}
       >
-        <SlideCanvasPreview fill slide={slide} />
+        <SlideCanvasPreview fill interactive={false} slide={slide} />
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0">
           <div className="h-28 bg-gradient-to-t from-black/90 via-black/55 to-transparent" />
