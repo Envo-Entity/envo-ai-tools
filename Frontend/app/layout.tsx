@@ -1,16 +1,38 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Space_Grotesk } from "next/font/google";
+import type { CSSProperties } from "react";
+import localFont from "next/font/local";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { themeCssVariables } from "@/constants/theme";
 import "./globals.css";
 
-const headingFont = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-geist-serif",
+const dazzleFont = localFont({
+  src: [
+    {
+      path: "../assets/fonts/DazzleUnicaseLight.otf",
+      weight: "300",
+      style: "normal",
+    },
+    {
+      path: "../assets/fonts/DazzleUnicaseMedium.otf",
+      weight: "500",
+      style: "normal",
+    },
+  ],
+  variable: "--font-dazzle",
 });
 
-const bodyFont = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-geist-sans",
+const dinFont = localFont({
+  src: "../assets/fonts/dinpro_light.otf",
+  weight: "300",
+  style: "normal",
+  variable: "--font-din",
+});
+
+const neuebitFont = localFont({
+  src: "../assets/fonts/neuebit-bold.otf",
+  weight: "700",
+  style: "normal",
+  variable: "--font-neuebit",
 });
 
 export const metadata: Metadata = {
@@ -25,7 +47,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${bodyFont.variable} ${headingFont.variable}`}>
+      <body
+        className={`${dazzleFont.variable} ${dinFont.variable} ${neuebitFont.variable}`}
+        style={themeCssVariables as CSSProperties}
+      >
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>

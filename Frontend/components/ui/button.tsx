@@ -3,13 +3,15 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ring-offset-white",
+  "font-body inline-flex items-center justify-center rounded-xl border text-sm tracking-[0.02em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ring-offset-[var(--color-bg)]",
   {
     variants: {
       variant: {
-        default: "bg-zinc-950 text-white hover:bg-zinc-800",
-        outline: "border border-zinc-200 bg-white text-zinc-950 hover:bg-zinc-50",
-        ghost: "text-zinc-700 hover:bg-zinc-100",
+        default:
+          "border-[color:var(--color-primary)] bg-[color:var(--color-primary)] text-white hover:bg-[color:var(--color-primary-strong)] hover:border-[color:var(--color-primary-strong)]",
+        outline:
+          "border-[color:var(--color-border)] bg-[color:rgb(255_255_255_/_0.04)] text-[color:var(--color-text)] hover:bg-[color:rgb(255_255_255_/_0.08)]",
+        ghost: "border-transparent bg-transparent text-[color:var(--color-text-secondary)] hover:bg-[color:rgb(255_255_255_/_0.04)] hover:text-[color:var(--color-text)]",
       },
       size: {
         default: "h-10 px-4 py-2",

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Theme } from "@/constants/theme";
 import { cn } from "@/lib/utils";
 
 const starterMessages: ChatMessage[] = [
@@ -49,26 +50,29 @@ export function ChatShell() {
 
   return (
     <div className="grid min-h-screen place-items-center px-4 py-10 sm:px-6">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.2),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(249,115,22,0.16),_transparent_24%),linear-gradient(135deg,_#f8fafc_0%,_#ecfccb_100%)]" />
-      <div className="absolute inset-x-0 top-0 -z-10 h-64 bg-[linear-gradient(180deg,rgba(255,255,255,0.7),transparent)]" />
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(191,14,110,0.2),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(248,123,90,0.16),_transparent_24%),linear-gradient(135deg,_rgba(36,33,36,1)_0%,_rgba(69,66,69,1)_100%)]" />
+      <div className="absolute inset-x-0 top-0 -z-10 h-64 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),transparent)]" />
 
-      <div className="w-full max-w-5xl">
+      <div className="w-full" style={{ maxWidth: `${Theme.maxContentWidth}px` }}>
         <div className="mb-6 flex flex-col gap-3">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
+          <div className="font-accent inline-flex w-fit items-center gap-2 rounded-full border border-[color:rgb(255_255_255_/_0.1)] bg-[color:rgb(255_255_255_/_0.05)] px-4 py-2 text-sm uppercase tracking-[0.24em] text-[color:var(--color-accent)]">
             <Sparkles className="h-3.5 w-3.5" />
             ENVO AI TOOLS
           </div>
-          <h1 className="max-w-2xl font-serif text-4xl font-semibold tracking-tight text-zinc-950 sm:text-6xl">
-            Your first tool is a clean Gemini chat experience.
+          <p className="font-accent max-w-2xl text-3xl uppercase leading-none tracking-[0.12em] text-[color:var(--color-primary)] sm:text-4xl">
+            WELCOME
+          </p>
+          <h1 className="font-title max-w-3xl text-5xl tracking-[-0.04em] text-[color:var(--color-text)] sm:text-7xl">
+            Talk to Gemini inside ENVO AI TOOLS.
           </h1>
-          <p className="max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
-            Next.js on the frontend, Express on the backend, and Gemini 3.1 Pro Preview in the loop.
+          <p className="font-subtitle max-w-2xl text-base leading-7 tracking-[0.02em] text-[color:var(--color-text-secondary)] sm:text-lg">
+            Dazzle leads the headings, DIN carries the body, and Neuebit calls attention where it matters.
           </p>
         </div>
 
         <Card className="overflow-hidden">
           <CardContent className="grid gap-0 p-0 lg:grid-cols-[1.2fr_340px]">
-            <div className="border-b border-zinc-200/70 lg:border-b-0 lg:border-r">
+            <div className="border-b border-[color:rgb(255_255_255_/_0.08)] lg:border-b-0 lg:border-r">
               <ScrollArea className="h-[560px]">
                 <div className="space-y-4 p-6">
                   {messages.map((message, index) => (
@@ -80,24 +84,24 @@ export function ChatShell() {
                       )}
                     >
                       {message.role === "model" && (
-                        <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 text-white">
+                        <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--color-primary)] text-white">
                           <Bot className="h-4 w-4" />
                         </div>
                       )}
 
                       <div
                         className={cn(
-                          "max-w-[85%] rounded-[24px] px-4 py-3 text-sm leading-6 shadow-sm",
+                          "font-body max-w-[85%] rounded-[24px] px-4 py-3 text-sm leading-6 shadow-sm",
                           message.role === "user"
-                            ? "bg-zinc-950 text-white"
-                            : "bg-zinc-100 text-zinc-800",
+                            ? "border border-[color:rgb(255_255_255_/_0.08)] bg-[color:rgb(255_255_255_/_0.06)] text-[color:var(--color-text)]"
+                            : "bg-[linear-gradient(180deg,rgba(194,58,131,0.18),rgba(153,19,97,0.2))] text-[color:var(--color-text)]",
                         )}
                       >
                         {message.text}
                       </div>
 
                       {message.role === "user" && (
-                        <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-white">
+                        <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--color-accent)] text-[color:var(--color-bg)]">
                           <User2 className="h-4 w-4" />
                         </div>
                       )}
@@ -106,10 +110,10 @@ export function ChatShell() {
 
                   {chatMutation.isPending && (
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500 text-white">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[color:var(--color-primary)] text-white">
                         <Bot className="h-4 w-4" />
                       </div>
-                      <div className="inline-flex items-center gap-2 rounded-[24px] bg-zinc-100 px-4 py-3 text-sm text-zinc-600">
+                      <div className="font-body inline-flex items-center gap-2 rounded-[24px] bg-[color:rgb(255_255_255_/_0.05)] px-4 py-3 text-sm text-[color:var(--color-text-secondary)]">
                         <LoaderCircle className="h-4 w-4 animate-spin" />
                         Thinking...
                       </div>
@@ -118,7 +122,7 @@ export function ChatShell() {
                 </div>
               </ScrollArea>
 
-              <form className="border-t border-zinc-200/70 bg-white/70 p-4" onSubmit={handleSubmit}>
+              <form className="border-t border-[color:rgb(255_255_255_/_0.08)] bg-[color:rgb(0_0_0_/_0.1)] p-4" onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Input
                     value={prompt}
@@ -130,35 +134,35 @@ export function ChatShell() {
                   </Button>
                 </div>
                 {chatMutation.isError && (
-                  <p className="mt-3 text-sm text-rose-600">Something went wrong while contacting the backend.</p>
+                  <p className="font-body mt-3 text-sm text-rose-300">Something went wrong while contacting the backend.</p>
                 )}
               </form>
             </div>
 
-            <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(244,244,245,0.9))] p-6">
+            <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.12))] p-6">
               <div className="space-y-6">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">Workspace</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-zinc-950">Simple Chat Tool</h2>
+                  <p className="font-accent text-sm uppercase tracking-[0.22em] text-[color:var(--color-accent)]">Workspace</p>
+                  <h2 className="font-title mt-2 text-3xl text-[color:var(--color-text)]">Simple Chat Tool</h2>
                 </div>
 
-                <div className="rounded-[24px] border border-zinc-200 bg-white p-4">
-                  <p className="text-sm font-medium text-zinc-950">Stack</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-600">
+                <div className="rounded-[24px] border border-[color:rgb(255_255_255_/_0.08)] bg-[color:rgb(255_255_255_/_0.03)] p-4">
+                  <p className="font-subtitle text-base text-[color:var(--color-text)]">Stack</p>
+                  <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">
                     Next.js, Tailwind, TanStack Query, shadcn-style UI, Express, TypeScript, and Gemini.
                   </p>
                 </div>
 
-                <div className="rounded-[24px] border border-zinc-200 bg-white p-4">
-                  <p className="text-sm font-medium text-zinc-950">Status</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-600">
+                <div className="rounded-[24px] border border-[color:rgb(255_255_255_/_0.08)] bg-[color:rgb(255_255_255_/_0.03)] p-4">
+                  <p className="font-subtitle text-base text-[color:var(--color-text)]">Status</p>
+                  <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">
                     {emptyState
                       ? "Ready for the first real prompt."
                       : "Conversation active. Frontend and backend are already connected."}
                   </p>
                 </div>
 
-                <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900">
+                <div className="font-body rounded-[24px] border border-[color:rgb(248_123_90_/_0.25)] bg-[color:rgb(248_123_90_/_0.08)] p-4 text-sm leading-6 text-[color:var(--color-text)]">
                   Database wiring is prepared in the backend, but no DB operations are being used yet.
                 </div>
               </div>
