@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { Bot, LoaderCircle, Sparkles, User2 } from "lucide-react";
+import { ArrowUpRight, Bot, LoaderCircle, MessageCircleMore, Sparkles, User2, WandSparkles } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { sendChat, type ChatMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -14,9 +14,33 @@ import { cn } from "@/lib/utils";
 const starterMessages: ChatMessage[] = [
   {
     role: "model",
-    text: "Hi, I’m the first ENVO AI tool. Ask me anything and I’ll reply through your Gemini-powered backend.",
+    text: "Hi there. I’m your first ENVO tool. Ask anything and I’ll reply through your Gemini-powered backend.",
   },
 ];
+
+const featurePills = [
+  {
+    label: "CHAT FAST",
+    tone: "bg-[#f86540] text-[#201c20]",
+    chip: "bg-[#f2ef5b] text-[#201c20]",
+    rotate: "-rotate-[2deg]",
+    icon: MessageCircleMore,
+  },
+  {
+    label: "THINK DEEP",
+    tone: "bg-[#d38ab5] text-[#201c20]",
+    chip: "bg-[#f2ef5b] text-[#201c20]",
+    rotate: "rotate-[4deg]",
+    icon: WandSparkles,
+  },
+  {
+    label: "SHIP TOOLS",
+    tone: "bg-[#bfb4db] text-[#201c20]",
+    chip: "bg-[#f2ef5b] text-[#201c20]",
+    rotate: "-rotate-[3deg]",
+    icon: ArrowUpRight,
+  },
+] as const;
 
 export function ChatShell() {
   const [messages, setMessages] = useState<ChatMessage[]>(starterMessages);
@@ -49,30 +73,105 @@ export function ChatShell() {
   }
 
   return (
-    <div className="grid min-h-screen place-items-center px-4 py-10 sm:px-6">
+    <div className="grid min-h-screen place-items-center overflow-hidden px-4 py-10 sm:px-6">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(191,14,110,0.2),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(248,123,90,0.16),_transparent_24%),linear-gradient(135deg,_rgba(36,33,36,1)_0%,_rgba(69,66,69,1)_100%)]" />
       <div className="absolute inset-x-0 top-0 -z-10 h-64 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),transparent)]" />
+      <div className="absolute left-[-6rem] top-16 -z-10 h-48 w-48 rounded-full border border-[color:rgb(255_255_255_/_0.08)]" />
+      <div className="absolute right-[-4rem] top-28 -z-10 h-36 w-36 rounded-full border border-[color:rgb(255_255_255_/_0.08)]" />
 
       <div className="w-full" style={{ maxWidth: `${Theme.maxContentWidth}px` }}>
-        <div className="mb-6 flex flex-col gap-3">
-          <div className="font-accent inline-flex w-fit items-center gap-2 rounded-full border border-[color:rgb(255_255_255_/_0.1)] bg-[color:rgb(255_255_255_/_0.05)] px-4 py-2 text-sm uppercase tracking-[0.24em] text-[color:var(--color-accent)]">
-            <Sparkles className="h-3.5 w-3.5" />
-            ENVO AI TOOLS
-          </div>
-          <p className="font-accent max-w-2xl text-3xl uppercase leading-none tracking-[0.12em] text-[color:var(--color-primary)] sm:text-4xl">
-            WELCOME
-          </p>
-          <h1 className="font-title max-w-3xl text-5xl tracking-[-0.04em] text-[color:var(--color-text)] sm:text-7xl">
-            Talk to Gemini inside ENVO AI TOOLS.
-          </h1>
-          <p className="font-subtitle max-w-2xl text-base leading-7 tracking-[0.02em] text-[color:var(--color-text-secondary)] sm:text-lg">
-            Dazzle leads the headings, DIN carries the body, and Neuebit calls attention where it matters.
-          </p>
-        </div>
+        <div className="grid items-start gap-8 lg:grid-cols-[0.92fr_1.08fr]">
+          <section className="px-2 pt-2">
+            <div className="mb-6 flex items-center justify-between">
+              <div className="font-accent inline-flex h-16 w-16 items-center justify-center rounded-2xl border border-[color:rgb(255_255_255_/_0.08)] text-2xl uppercase text-[color:var(--color-text)]">
+                ea
+              </div>
+              <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[color:rgb(230_234_234_/_0.95)] text-[color:rgb(230_234_234_/_0.95)]">
+                <span className="font-body text-3xl">T</span>
+              </div>
+            </div>
 
-        <Card className="overflow-hidden">
-          <CardContent className="grid gap-0 p-0 lg:grid-cols-[1.2fr_340px]">
-            <div className="border-b border-[color:rgb(255_255_255_/_0.08)] lg:border-b-0 lg:border-r">
+            <div className="mb-8">
+              <p className="font-subtitle text-4xl uppercase leading-none tracking-[-0.04em] text-[color:var(--color-text)] sm:text-5xl">
+                HI THERE,
+              </p>
+              <h1 className="font-accent mt-2 text-[5.5rem] uppercase leading-[0.8] tracking-[-0.08em] text-[color:var(--color-text)] sm:text-[8rem]">
+                envo.
+              </h1>
+              <p className="font-body mt-4 max-w-md text-base leading-7 text-[color:var(--color-text-secondary)]">
+                Gemini chat for ENVO AI TOOLS, wrapped in the same playful type system and dark brand energy you showed in the reference.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {featurePills.map((pill) => {
+                const Icon = pill.icon;
+
+                return (
+                  <div
+                    key={pill.label}
+                    className={cn(
+                      "rounded-[2rem] p-3 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.6)]",
+                      pill.tone,
+                      pill.rotate,
+                    )}
+                  >
+                    <div className="flex items-center justify-between rounded-[1.75rem] border border-[color:rgb(36_33_36_/_0.12)] px-4 py-3">
+                      <div className={cn("flex h-16 w-16 items-center justify-center rounded-full", pill.chip)}>
+                        <Icon className="h-8 w-8" strokeWidth={2.2} />
+                      </div>
+                      <div className="font-title flex-1 px-4 text-[2rem] uppercase tracking-[-0.06em] sm:text-[2.5rem]">
+                        {pill.label}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <Card className="overflow-hidden">
+            <CardContent className="grid gap-0 p-0">
+              <div className="border-b border-[color:rgb(255_255_255_/_0.08)]">
+                <div className="flex items-center justify-between px-5 py-4">
+                  <div>
+                    <p className="font-accent text-sm uppercase tracking-[0.18em] text-[color:var(--color-accent)]">
+                      Tool 01
+                    </p>
+                    <h2 className="font-title mt-1 text-3xl tracking-[-0.05em] text-[color:var(--color-text)]">
+                      Chat App
+                    </h2>
+                  </div>
+                  <div className="font-body rounded-full border border-[color:rgb(255_255_255_/_0.08)] px-3 py-1 text-xs uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
+                    Gemini 3.1 Pro
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-b border-[color:rgb(255_255_255_/_0.08)]">
+                <div className="grid gap-3 px-5 py-4 sm:grid-cols-3">
+                  <div className="rounded-[1.5rem] bg-[color:rgb(255_255_255_/_0.03)] p-4">
+                    <p className="font-accent text-xs uppercase tracking-[0.16em] text-[color:var(--color-primary)]">Style</p>
+                    <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">
+                      Dazzle for headings, DIN for body, Neuebit for high-attention moments.
+                    </p>
+                  </div>
+                  <div className="rounded-[1.5rem] bg-[color:rgb(255_255_255_/_0.03)] p-4">
+                    <p className="font-accent text-xs uppercase tracking-[0.16em] text-[color:var(--color-primary)]">Mood</p>
+                    <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">
+                      Dark, rounded, playful, and inspired by your reference without cloning it.
+                    </p>
+                  </div>
+                  <div className="rounded-[1.5rem] bg-[color:rgb(255_255_255_/_0.03)] p-4">
+                    <p className="font-accent text-xs uppercase tracking-[0.16em] text-[color:var(--color-primary)]">Stack</p>
+                    <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">
+                      Next.js, Express, TanStack Query, Tailwind, Gemini.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
               <ScrollArea className="h-[560px]">
                 <div className="space-y-4 p-6">
                   {messages.map((message, index) => (
@@ -121,6 +220,7 @@ export function ChatShell() {
                   )}
                 </div>
               </ScrollArea>
+              </div>
 
               <form className="border-t border-[color:rgb(255_255_255_/_0.08)] bg-[color:rgb(0_0_0_/_0.1)] p-4" onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-3 sm:flex-row">
@@ -137,38 +237,9 @@ export function ChatShell() {
                   <p className="font-body mt-3 text-sm text-rose-300">Something went wrong while contacting the backend.</p>
                 )}
               </form>
-            </div>
-
-            <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(0,0,0,0.12))] p-6">
-              <div className="space-y-6">
-                <div>
-                  <p className="font-accent text-sm uppercase tracking-[0.22em] text-[color:var(--color-accent)]">Workspace</p>
-                  <h2 className="font-title mt-2 text-3xl text-[color:var(--color-text)]">Simple Chat Tool</h2>
-                </div>
-
-                <div className="rounded-[24px] border border-[color:rgb(255_255_255_/_0.08)] bg-[color:rgb(255_255_255_/_0.03)] p-4">
-                  <p className="font-subtitle text-base text-[color:var(--color-text)]">Stack</p>
-                  <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">
-                    Next.js, Tailwind, TanStack Query, shadcn-style UI, Express, TypeScript, and Gemini.
-                  </p>
-                </div>
-
-                <div className="rounded-[24px] border border-[color:rgb(255_255_255_/_0.08)] bg-[color:rgb(255_255_255_/_0.03)] p-4">
-                  <p className="font-subtitle text-base text-[color:var(--color-text)]">Status</p>
-                  <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">
-                    {emptyState
-                      ? "Ready for the first real prompt."
-                      : "Conversation active. Frontend and backend are already connected."}
-                  </p>
-                </div>
-
-                <div className="font-body rounded-[24px] border border-[color:rgb(248_123_90_/_0.25)] bg-[color:rgb(248_123_90_/_0.08)] p-4 text-sm leading-6 text-[color:var(--color-text)]">
-                  Database wiring is prepared in the backend, but no DB operations are being used yet.
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
