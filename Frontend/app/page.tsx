@@ -14,6 +14,12 @@ const TOOLS = [
     status: "Under Construction",
     href: "/slides-maker",
   },
+  {
+    name: "Presentation Decks",
+    description: "Create beautiful modern PPT-style slides with richer copy, stronger structure, and pitch-deck energy.",
+    status: "Under Construction",
+    href: "/presentation-decks",
+  },
 ];
 
 const PAGE_SIZE = 4;

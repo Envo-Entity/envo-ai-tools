@@ -44,6 +44,59 @@ type AssetMentionMatch = {
   query: string;
 };
 
+type ToolPageConfig = {
+  toolIndexLabel: string;
+  toolName: string;
+  projectsDescription: string;
+  emptyProjectsDescription: string;
+  configDescription: string;
+  workspaceDescription: string;
+  defaultProjectName: string;
+  projectAboutPlaceholder: string;
+  promptPlaceholder: string;
+  ideaSeedPlaceholder: string;
+  noSlidesDescription: string;
+  promptPanelTitle: string;
+  ideasPanelTitle: string;
+  generateButtonLabel: string;
+  generateIdeasButtonLabel: string;
+  projectAssetsDescription: string;
+  generationAreaTitle: string;
+  promptPrefix?: string;
+  ideaSeedPrefix?: string;
+};
+
+const defaultToolPageConfig: ToolPageConfig = {
+  toolIndexLabel: "Tool 01",
+  toolName: "AI Slides Maker",
+  projectsDescription: "Create and manage persisted slide projects backed by Neon, UploadThing, and Gemini generation.",
+  emptyProjectsDescription: "Start a new project to define the context, upload assets, and move into the persisted generation workspace.",
+  configDescription: "Define the project context first. Assets selected here will be uploaded to UploadThing after the project record is created.",
+  workspaceDescription: "Projects, ideas, slide variants, references, and generated media now live in the backend.",
+  defaultProjectName: "AI Slides Maker",
+  projectAboutPlaceholder: "Explain what this project is about, who the audience is, and what kind of visual direction the AI should understand.",
+  promptPlaceholder: "Describe the slide, composition, message, and style. Type @ to reference an uploaded asset by name.",
+  ideaSeedPlaceholder: "Optionally steer what kind of ideas should be generated.",
+  noSlidesDescription: "Generate variants from the left panel. Each completed slide is saved as HTML and can be reused as a reference.",
+  promptPanelTitle: "Prompt",
+  ideasPanelTitle: "Direction Seed",
+  generateButtonLabel: "Generate",
+  generateIdeasButtonLabel: "Generate Ideas",
+  projectAssetsDescription: "These are reusable across prompts. Type @ in the prompt box to reference them by name.",
+  generationAreaTitle: "Generation Area",
+};
+
+function composePrompt(prefix: string | undefined, prompt: string) {
+  const trimmedPrompt = prompt.trim();
+  const trimmedPrefix = prefix?.trim();
+
+  if (!trimmedPrefix) {
+    return trimmedPrompt;
+  }
+
+  return trimmedPrompt ? `${trimmedPrefix}\n\n${trimmedPrompt}` : trimmedPrefix;
+}
+
 const aspectRatios = [
   { label: "9:16", name: "Story", preview: "aspect-[9/16]" },
   { label: "16:9", name: "Wide", preview: "aspect-[16/9]" },
@@ -496,7 +549,11 @@ function SlideTile({
   );
 }
 
-export default function SlidesMakerPage() {
+export function SlidesToolPage({
+  config = defaultToolPageConfig,
+}: {
+  config?: ToolPageConfig;
+}) {
   const queryClient = useQueryClient();
   const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [view, setView] = useState<AppView>("projects");
@@ -605,7 +662,7 @@ export default function SlidesMakerPage() {
         throw new Error("Select a project first.");
       }
 
-      return generateIdeas(selectedProjectId, ideaSeed.trim() || undefined);
+      return generateIdeas(selectedProjectId, composePrompt(config.ideaSeedPrefix, ideaSeed) || undefined);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["project", selectedProjectId] });
@@ -624,7 +681,7 @@ export default function SlidesMakerPage() {
       const requestedOutputs = Math.max(1, Math.min(3, Number.parseInt(numberOfOutputs || "1", 10) || 1));
 
       return createGeneration(selectedProjectId, {
-        prompt: input.prompt,
+        prompt: composePrompt(config.promptPrefix, input.prompt),
         requestedOutputs,
         aspectRatio: selectedAspectRatio,
         referenceSlideId: selectedReferenceSlideId,
@@ -863,10 +920,10 @@ export default function SlidesMakerPage() {
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
           <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="font-accent text-sm uppercase tracking-[0.18em] text-[color:var(--color-accent)]">Tool 01</p>
-              <h1 className="font-title mt-2 text-4xl tracking-[-0.05em] text-[color:var(--color-text)] sm:text-5xl">AI Slides Maker</h1>
+              <p className="font-accent text-sm uppercase tracking-[0.18em] text-[color:var(--color-accent)]">{config.toolIndexLabel}</p>
+              <h1 className="font-title mt-2 text-4xl tracking-[-0.05em] text-[color:var(--color-text)] sm:text-5xl">{config.toolName}</h1>
               <p className="font-body mt-4 max-w-2xl text-base leading-8 text-[color:var(--color-text-secondary)]">
-                Create and manage persisted slide projects backed by Neon, UploadThing, and Gemini generation.
+                {config.projectsDescription}
               </p>
             </div>
 
@@ -933,7 +990,7 @@ export default function SlidesMakerPage() {
                   </div>
                   <h2 className="font-title mt-6 text-3xl tracking-[-0.05em] text-[color:var(--color-text)]">No projects yet</h2>
                   <p className="font-body mt-4 max-w-md text-base leading-8 text-[color:var(--color-text-secondary)]">
-                    Start a new project to define the context, upload assets, and move into the persisted generation workspace.
+                    {config.emptyProjectsDescription}
                   </p>
                   <Button className="mt-6 rounded-full px-5" onClick={() => setView("config")}>
                     <Plus className="mr-2 h-4 w-4" />
@@ -957,7 +1014,7 @@ export default function SlidesMakerPage() {
               <p className="font-accent text-sm uppercase tracking-[0.18em] text-[color:var(--color-accent)]">Config</p>
               <h1 className="font-title mt-2 text-4xl tracking-[-0.05em] text-[color:var(--color-text)] sm:text-5xl">New Project</h1>
               <p className="font-body mt-4 max-w-2xl text-base leading-8 text-[color:var(--color-text-secondary)]">
-                Define the project context first. Assets selected here will be uploaded to UploadThing after the project record is created.
+                {config.configDescription}
               </p>
             </div>
 
@@ -984,7 +1041,7 @@ export default function SlidesMakerPage() {
                     className="font-body min-h-52 w-full resize-none rounded-[24px] border border-white/10 bg-[rgba(255,255,255,0.04)] px-4 py-4 text-sm leading-7 text-[color:var(--color-text)] outline-none transition placeholder:text-[color:var(--color-text-tertiary)] focus:border-[color:var(--color-primary)]"
                     id="project-about"
                     onChange={(event) => setProjectAbout(event.target.value)}
-                    placeholder="Explain what this project is about, who the audience is, and what kind of visual direction the AI should understand."
+                    placeholder={config.projectAboutPlaceholder}
                     value={projectAbout}
                   />
                 </div>
@@ -1038,10 +1095,10 @@ export default function SlidesMakerPage() {
           <div>
             <p className="font-accent text-sm uppercase tracking-[0.18em] text-[color:var(--color-accent)]">Workspace</p>
             <h1 className="font-title mt-2 text-4xl tracking-[-0.05em] text-[color:var(--color-text)] sm:text-5xl">
-              {currentProject?.name ?? "AI Slides Maker"}
+              {currentProject?.name ?? config.defaultProjectName}
             </h1>
             <p className="font-body mt-4 max-w-3xl text-base leading-8 text-[color:var(--color-text-secondary)]">
-              Projects, ideas, slide variants, references, and generated media now live in the backend.
+              {config.workspaceDescription}
             </p>
           </div>
 
@@ -1098,7 +1155,9 @@ export default function SlidesMakerPage() {
 
               <div className="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.03)] p-4">
                 <div className="flex items-center justify-between">
-                  <p className="font-subtitle text-lg text-[color:var(--color-text)]">{workspaceMode === "prompt" ? "Prompt" : "Direction Seed"}</p>
+                  <p className="font-subtitle text-lg text-[color:var(--color-text)]">
+                    {workspaceMode === "prompt" ? config.promptPanelTitle : config.ideasPanelTitle}
+                  </p>
                   {selectedReferenceSlideId && (
                     <p className="font-body text-xs uppercase tracking-[0.14em] text-[color:var(--color-accent)]">Reference Active</p>
                   )}
@@ -1115,7 +1174,7 @@ export default function SlidesMakerPage() {
                       }}
                       onClick={(event) => setPromptCaretIndex(event.currentTarget.selectionStart ?? prompt.length)}
                       onKeyUp={(event) => setPromptCaretIndex(event.currentTarget.selectionStart ?? prompt.length)}
-                      placeholder="Describe the slide, composition, message, and style. Type @ to reference an uploaded asset by name."
+                      placeholder={config.promptPlaceholder}
                       value={prompt}
                     />
                     <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -1169,7 +1228,7 @@ export default function SlidesMakerPage() {
                         onClick={() => createGenerationMutation.mutate({ prompt: prompt.trim(), trigger: "prompt" })}
                         type="button"
                       >
-                        {createGenerationMutation.isPending ? "Generating..." : "Generate"}
+                        {createGenerationMutation.isPending ? "Generating..." : config.generateButtonLabel}
                       </Button>
                     </div>
                   </>
@@ -1178,7 +1237,7 @@ export default function SlidesMakerPage() {
                     <textarea
                       className="font-body mt-4 min-h-28 w-full resize-none rounded-[22px] border border-white/8 bg-[rgba(255,255,255,0.02)] px-4 py-4 text-sm leading-7 text-[color:var(--color-text)] outline-none placeholder:text-[color:var(--color-text-tertiary)]"
                       onChange={(event) => setIdeaSeed(event.target.value)}
-                      placeholder="Optionally steer what kind of ideas should be generated."
+                      placeholder={config.ideaSeedPlaceholder}
                       value={ideaSeed}
                     />
 
@@ -1189,7 +1248,7 @@ export default function SlidesMakerPage() {
                         onClick={() => generateIdeasMutation.mutate()}
                         type="button"
                       >
-                        {generateIdeasMutation.isPending ? "Generating..." : "Generate Ideas"}
+                        {generateIdeasMutation.isPending ? "Generating..." : config.generateIdeasButtonLabel}
                       </Button>
                     </div>
 
@@ -1326,7 +1385,7 @@ export default function SlidesMakerPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <p className="font-accent text-xs uppercase tracking-[0.18em] text-[color:var(--color-primary)]">Output</p>
-                  <h2 className="font-title mt-2 text-3xl tracking-[-0.05em] text-[color:var(--color-text)]">Generation Area</h2>
+                  <h2 className="font-title mt-2 text-3xl tracking-[-0.05em] text-[color:var(--color-text)]">{config.generationAreaTitle}</h2>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <div className="font-body rounded-full border border-white/10 px-4 py-2 text-sm text-[color:var(--color-text-secondary)]">
@@ -1357,7 +1416,7 @@ export default function SlidesMakerPage() {
                     </div>
                     <h3 className="font-title mt-5 text-3xl tracking-[-0.05em] text-[color:var(--color-text)]">No slides yet</h3>
                     <p className="font-body mt-4 max-w-md text-sm leading-7 text-[color:var(--color-text-secondary)]">
-                      Generate variants from the left panel. Each completed slide is saved as HTML and can be reused as a reference.
+                      {config.noSlidesDescription}
                     </p>
                   </div>
                 ) : (
@@ -1383,7 +1442,15 @@ export default function SlidesMakerPage() {
               <div className="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.03)] p-4">
                 <p className="font-subtitle text-lg text-[color:var(--color-text)]">Project Assets</p>
                 <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">
-                  These are reusable across prompts. Type <span className="text-[color:var(--color-text)]">@</span> in the prompt box to reference them by name.
+                  {config.projectAssetsDescription.split("@").length > 1 ? (
+                    <>
+                      {config.projectAssetsDescription.split("@")[0]}
+                      <span className="text-[color:var(--color-text)]">@</span>
+                      {config.projectAssetsDescription.split("@").slice(1).join("@")}
+                    </>
+                  ) : (
+                    config.projectAssetsDescription
+                  )}
                 </p>
                 <div className="mt-5 flex flex-wrap gap-4">
                   {currentAssets.length ? (
@@ -1591,4 +1658,8 @@ export default function SlidesMakerPage() {
       )}
     </main>
   );
+}
+
+export default function SlidesMakerPage() {
+  return <SlidesToolPage />;
 }
