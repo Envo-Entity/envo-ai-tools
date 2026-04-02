@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AtSign, Check, Copy, FolderOpen, ImagePlus, LayoutTemplate, Lightbulb, Loader2, Pencil, Plus, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -243,6 +243,81 @@ function SlideCanvasPreview({
         </div>
       )}
     </div>
+  );
+}
+
+function UploadDropzone({
+  id,
+  title,
+  description,
+  onFilesSelected,
+  compact = false,
+  disabled = false,
+}: {
+  id?: string;
+  title: string;
+  description: string;
+  onFilesSelected: (files: FileList | null) => void;
+  compact?: boolean;
+  disabled?: boolean;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+
+  function handleDragOver(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    if (!disabled) {
+      setIsDragging(true);
+    }
+  }
+
+  function handleDragLeave(event: DragEvent<HTMLLabelElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setIsDragging(false);
+    }
+  }
+
+  function handleDrop(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setIsDragging(false);
+
+    if (disabled) {
+      return;
+    }
+
+    onFilesSelected(event.dataTransfer.files);
+  }
+
+  return (
+    <label
+      className={`flex cursor-pointer rounded-[24px] border border-dashed px-4 text-center transition ${
+        compact ? "items-center gap-3 py-4 text-left" : "flex-col items-center justify-center gap-3 py-8"
+      } ${isDragging ? "border-[rgba(248,101,64,0.55)] bg-[rgba(248,101,64,0.08)]" : "border-white/15 bg-[rgba(255,255,255,0.03)]"} ${
+        disabled ? "cursor-not-allowed opacity-60" : "hover:border-white/25 hover:bg-[rgba(255,255,255,0.05)]"
+      }`}
+      htmlFor={id}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[rgba(248,101,64,0.12)] text-[color:var(--color-accent)]">
+        <ImagePlus className="h-6 w-6" />
+      </div>
+      <div>
+        <p className="font-subtitle text-base text-[color:var(--color-text)]">{title}</p>
+        <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">{description}</p>
+      </div>
+      <input
+        className="hidden"
+        disabled={disabled}
+        id={id}
+        multiple
+        onChange={(event) => {
+          onFilesSelected(event.target.files);
+          event.target.value = "";
+        }}
+        type="file"
+      />
+    </label>
   );
 }
 
@@ -915,30 +990,12 @@ export default function SlidesMakerPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <label
-                    className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[24px] border border-dashed border-white/15 bg-[rgba(255,255,255,0.03)] px-4 py-8 text-center transition hover:border-white/25 hover:bg-[rgba(255,255,255,0.05)]"
-                    htmlFor="config-assets"
-                  >
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[rgba(248,101,64,0.12)] text-[color:var(--color-accent)]">
-                      <ImagePlus className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className="font-subtitle text-base text-[color:var(--color-text)]">Add project assets</p>
-                      <p className="font-body mt-2 text-sm leading-6 text-[color:var(--color-text-secondary)]">
-                        Up to 10 files. These become reusable project assets after the project is created.
-                      </p>
-                    </div>
-                    <input
-                      className="hidden"
-                      id="config-assets"
-                      multiple
-                      onChange={(event) => {
-                        addPendingFiles(event.target.files);
-                        event.target.value = "";
-                      }}
-                      type="file"
-                    />
-                  </label>
+                  <UploadDropzone
+                    description="Up to 10 files. These become reusable project assets after the project is created."
+                    id="config-assets"
+                    onFilesSelected={addPendingFiles}
+                    title="Add project assets"
+                  />
                 </div>
               </div>
 
@@ -1067,7 +1124,7 @@ export default function SlidesMakerPage() {
                       </span>
                       {currentAssets.length > 0 && (
                         <span className="font-body text-xs text-[color:var(--color-text-secondary)]">
-                          {currentAssets.length} uploaded asset{currentAssets.length > 1 ? "s" : ""} available for exact insertion.
+                          {currentAssets.length} uploaded asset{currentAssets.length > 1 ? "s are" : " is"} available as context. Mention one with @ to make it a stronger reference.
                         </span>
                       )}
                     </div>
@@ -1186,23 +1243,16 @@ export default function SlidesMakerPage() {
               <div className="rounded-[28px] border border-white/10 bg-[rgba(255,255,255,0.03)] p-4">
                 <p className="font-subtitle text-lg text-[color:var(--color-text)]">Inspirations</p>
                 <div className="mt-4 grid gap-3">
-                  <label
-                    className="flex cursor-pointer items-center gap-3 rounded-[20px] border border-dashed border-white/15 bg-[rgba(255,255,255,0.03)] px-4 py-4 transition hover:border-white/25"
-                    htmlFor="inspirations"
-                  >
-                    <ImagePlus className="h-5 w-5 text-[color:var(--color-accent)]" />
-                    <span className="font-body text-sm text-[color:var(--color-text-secondary)]">Add inspiration images</span>
-                    <input
-                      className="hidden"
-                      id="inspirations"
-                      multiple
-                      onChange={(event) => {
-                        void handleUploadToProject("inspiration", event.target.files);
-                        event.target.value = "";
-                      }}
-                      type="file"
-                    />
-                  </label>
+                  <UploadDropzone
+                    compact
+                    description="Drag inspiration images here, or click to browse."
+                    disabled={isUploadingInspirations}
+                    id="inspirations"
+                    onFilesSelected={(files) => {
+                      void handleUploadToProject("inspiration", files);
+                    }}
+                    title="Add inspiration images"
+                  />
 
                   {isUploadingInspirations && (
                     <p className="font-body text-sm leading-6 text-[color:var(--color-text-secondary)]">Uploading inspiration images...</p>
@@ -1429,19 +1479,17 @@ export default function SlidesMakerPage() {
                     <p className="font-body text-sm text-[color:var(--color-text-secondary)]">No assets attached to this project yet.</p>
                   )}
 
-                  <label className="flex h-[176px] w-[176px] cursor-pointer flex-col items-center justify-center rounded-[24px] border border-dashed border-white/15 bg-[rgba(255,255,255,0.03)] text-center transition hover:border-white/25 hover:bg-[rgba(255,255,255,0.05)]">
-                    <ImagePlus className="h-5 w-5 text-[color:var(--color-accent)]" />
-                    <span className="font-body mt-2 px-3 text-xs leading-5 text-[color:var(--color-text-secondary)]">Upload new asset</span>
-                    <input
-                      className="hidden"
-                      multiple
-                      onChange={(event) => {
-                        void handleUploadToProject("asset", event.target.files);
-                        event.target.value = "";
+                  <div className="w-[176px]">
+                    <UploadDropzone
+                      compact={false}
+                      description="Drop files here or click to add another asset."
+                      disabled={isUploadingAssets}
+                      onFilesSelected={(files) => {
+                        void handleUploadToProject("asset", files);
                       }}
-                      type="file"
+                      title="Upload new asset"
                     />
-                  </label>
+                  </div>
                 </div>
                 {isUploadingAssets && (
                   <p className="font-body mt-3 text-sm leading-6 text-[color:var(--color-text-secondary)]">Uploading project assets...</p>

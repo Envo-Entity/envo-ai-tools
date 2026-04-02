@@ -101,6 +101,35 @@ function mediaContextLine(items: Array<{ kind: string; name: string; url: string
   return items.map((item) => `- [${item.kind}] ${item.name}: ${item.url}`).join("\n");
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getMentionedMedia(prompt: string, media: Array<{ kind: string; name: string; url: string }>) {
+  const uniqueMedia = [...media]
+    .sort((left, right) => right.name.length - left.name.length)
+    .filter((item, index, items) => items.findIndex((candidate) => candidate.name.toLowerCase() === item.name.toLowerCase()) === index);
+
+  return uniqueMedia.filter((item) => {
+    const pattern = new RegExp(`(^|\\s)@${escapeRegExp(item.name)}(?=\\s|$|[.,!?;:)"'\\]])`, "i");
+    return pattern.test(prompt);
+  });
+}
+
+function buildMentionedMediaContext(prompt: string, media: Array<{ kind: string; name: string; url: string }>) {
+  const mentionedMedia = getMentionedMedia(prompt, media).filter((item) => item.kind !== "generated_image");
+
+  if (mentionedMedia.length === 0) {
+    return "Mentioned assets in the user prompt: none.";
+  }
+
+  return [
+    "Mentioned assets in the user prompt:",
+    ...mentionedMedia.map((item) => `- @${item.name} [${item.kind}] ${item.url}`),
+    "These assets were explicitly referenced by the user. Use their URLs and treat them as high-priority visual context.",
+  ].join("\n");
+}
+
 function buildProjectContext(project: { name: string; about: string }, media: Array<{ kind: string; name: string; url: string }>) {
   return [
     `Project name: ${project.name}`,
@@ -180,6 +209,7 @@ async function planSlideVariant(input: {
     "When an image is not needed, return an empty imageTasks array.",
     `Target aspect ratio: ${input.aspectRatio}`,
     `User prompt: ${input.prompt}`,
+    buildMentionedMediaContext(input.prompt, input.media),
     buildProjectContext(input.project, input.media),
     input.referenceHtml
       ? `Reference slide HTML follows. Use it for continuity, but do not copy it verbatim.\n${input.referenceHtml}`
@@ -281,6 +311,7 @@ async function generateSlideHtml(input: {
     "The slide should feel polished, intentional, and visually strong.",
     `Target aspect ratio: ${input.aspectRatio}`,
     `User prompt: ${input.prompt}`,
+    buildMentionedMediaContext(input.prompt, input.media),
     `Planner title: ${input.planner.title}`,
     `Design brief: ${input.planner.designBrief}`,
     `HTML instructions:\n${input.planner.htmlInstructions.map((instruction) => `- ${instruction}`).join("\n")}`,
