@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { z } from "zod";
 import { env } from "../config/env.js";
 import {
@@ -14,13 +14,25 @@ const unlockSchema = z.object({
   password: z.string().length(4),
 });
 
+function disableAuthCaching(res: Response) {
+  res.set({
+    "Cache-Control": "private, no-store, no-cache, must-revalidate, max-age=0",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+}
+
 authRouter.get("/session", (req, res) => {
+  disableAuthCaching(res);
+
   return res.json({
     authenticated: hasValidSession(req),
   });
 });
 
 authRouter.post("/unlock", (req, res) => {
+  disableAuthCaching(res);
+
   if (!isAuthConfigured()) {
     return res.status(500).json({
       error: "Auth is not configured on the backend.",
@@ -50,6 +62,7 @@ authRouter.post("/unlock", (req, res) => {
 });
 
 authRouter.post("/logout", (_req, res) => {
+  disableAuthCaching(res);
   clearSessionCookie(res);
 
   return res.json({

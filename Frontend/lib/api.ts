@@ -134,6 +134,7 @@ export async function sendChat(messages: ChatMessage[]) {
 
 export async function getSession() {
   const response = await fetch(`${API_URL}/api/auth/session`, {
+    cache: "no-store",
     credentials: "include",
   });
 

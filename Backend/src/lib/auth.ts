@@ -49,6 +49,16 @@ export function createSessionValue() {
   return `${payload}.${signature}`;
 }
 
+function getCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: env.AUTH_COOKIE_SAME_SITE,
+    secure: env.AUTH_COOKIE_SECURE,
+    path: "/",
+    ...(env.AUTH_COOKIE_DOMAIN ? { domain: env.AUTH_COOKIE_DOMAIN } : {}),
+  } as const;
+}
+
 export function hasValidSession(request: Request) {
   if (!isAuthConfigured()) {
     return false;
@@ -71,19 +81,13 @@ export function hasValidSession(request: Request) {
 
 export function setSessionCookie(response: Response) {
   response.cookie(COOKIE_NAME, createSessionValue(), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: true,
     maxAge: COOKIE_MAX_AGE_MS,
-    path: "/",
+    ...getCookieOptions(),
   });
 }
 
 export function clearSessionCookie(response: Response) {
   response.clearCookie(COOKIE_NAME, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: true,
-    path: "/",
+    ...getCookieOptions(),
   });
 }

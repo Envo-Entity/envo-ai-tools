@@ -28,6 +28,9 @@ GEMINI_API_KEY=your_gemini_api_key
 FRONTEND_URL=http://localhost:3000
 SITE_PASSWORD=1234
 AUTH_COOKIE_SECRET=use-a-long-random-string-here
+AUTH_COOKIE_DOMAIN=
+AUTH_COOKIE_SAME_SITE=lax
+AUTH_COOKIE_SECURE=true
 UPLOADTHING_TOKEN=your_uploadthing_token
 ```
 
@@ -41,6 +44,12 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 ```bash
 npm run dev
 ```
+
+Optional production auth cookie settings:
+
+- `AUTH_COOKIE_DOMAIN`: set this when the frontend and backend should share the auth cookie across subdomains
+- `AUTH_COOKIE_SAME_SITE`: `lax`, `strict`, or `none`
+- `AUTH_COOKIE_SECURE`: `true` or `false`
 
 ## Included
 
