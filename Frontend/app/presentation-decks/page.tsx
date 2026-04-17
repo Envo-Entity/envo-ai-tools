@@ -1,6 +1,6 @@
 "use client";
 
-import { SlidesToolPage } from "@/app/slides-maker/page";
+import { SlidesToolPage } from "@/components/slides-tool-page";
 
 const presentationDeckConfig = {
   toolIndexLabel: "Tool 02",
