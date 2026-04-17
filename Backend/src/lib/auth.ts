@@ -73,7 +73,7 @@ export function setSessionCookie(response: Response) {
   response.cookie(COOKIE_NAME, createSessionValue(), {
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: true,
     maxAge: COOKIE_MAX_AGE_MS,
     path: "/",
   });
@@ -83,7 +83,7 @@ export function clearSessionCookie(response: Response) {
   response.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: true,
     path: "/",
   });
 }
