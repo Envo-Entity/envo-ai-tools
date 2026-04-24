@@ -1,8 +1,141 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
+type ApiErrorPayload = {
+  success?: boolean;
+  code?: string;
+  message?: string;
+  error?: string;
+  hint?: string;
+  step?: string | null;
+  debugLogs?: FacebookAdsDebugLog[];
+  details?: {
+    formErrors?: string[];
+    fieldErrors?: Record<string, string[] | undefined>;
+  };
+};
+
+export type FacebookAdsDebugLog = {
+  timestamp: string;
+  level: "info" | "error";
+  message: string;
+  data?: Record<string, unknown>;
+};
+
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  hint?: string;
+  step?: string | null;
+  debugLogs?: FacebookAdsDebugLog[];
+  details?: ApiErrorPayload["details"];
+  payload?: ApiErrorPayload;
+
+  constructor(message: string, options: { status: number; payload?: ApiErrorPayload }) {
+    super(message);
+    this.name = "ApiError";
+    this.status = options.status;
+    this.code = options.payload?.code;
+    this.hint = options.payload?.hint;
+    this.step = options.payload?.step;
+    this.debugLogs = options.payload?.debugLogs;
+    this.details = options.payload?.details;
+    this.payload = options.payload;
+  }
+}
+
 export type ChatMessage = {
   role: "user" | "model";
   text: string;
+};
+
+export type FacebookAdFormData = {
+  productDescription: string;
+  targetLocation: string;
+  dailyBudget: number;
+  ageMin: number;
+  ageMax: number;
+  publishImmediately: boolean;
+};
+
+export type FacebookAdGeneratedContent = {
+  primaryText: string;
+  headline: string;
+  callToAction:
+    | "LEARN_MORE"
+    | "SIGN_UP"
+    | "GET_QUOTE"
+    | "CONTACT_US"
+    | "SUBSCRIBE"
+    | "APPLY_NOW"
+    | "DOWNLOAD"
+    | "GET_OFFER"
+    | "SHOP_NOW"
+    | "BOOK_TRAVEL";
+  interests: string[];
+  campaignName: string;
+  adSetName: string;
+  adName: string;
+};
+
+export type FacebookAdCreateResult = {
+  campaignId: string;
+  campaignName: string;
+  adsManagerUrl: string;
+  debugLogs?: FacebookAdsDebugLog[];
+};
+
+export type PromptRaceIngredient = {
+  title: string;
+  description: string;
+  health_impact: "good" | "okay" | "bad";
+};
+
+export type PromptRaceAnalysis = {
+  is_consumable: boolean;
+  confidence: number;
+  product_name: string | null;
+  product_subtitle?: string | null;
+  category: "food" | "beverage" | "cosmetics" | "other" | null;
+  health_score: number | null;
+  planet_score: number | null;
+  reasoning?: string | null;
+  compatibility: {
+    score: number;
+    label: "low" | "moderate" | "high";
+    summary: string;
+    likes: Array<{ text: string }>;
+    concerns: Array<{ text: string }>;
+  } | null;
+  ingredients: PromptRaceIngredient[] | null;
+};
+
+export type PromptRaceUsage = {
+  model: string;
+  tokens: {
+    prompt: number;
+    cached: number;
+    output: number;
+    thoughts: number;
+    total: number;
+  };
+  cost: {
+    input_usd: number;
+    cached_usd: number;
+    output_usd: number;
+    thoughts_usd: number;
+    total_usd: number;
+  };
+};
+
+export type PromptRaceGeneratedImage = {
+  mimeType: string;
+  data: string;
+};
+
+export type PromptRaceAgentOneResult = {
+  productName: string | null;
+  categories: string[];
+  extractedIngredients: string;
 };
 
 export type ProjectSummary = {
@@ -110,13 +243,25 @@ export type ProjectDetail = {
 };
 
 async function readJson<T>(response: Response) {
-  const data = (await response.json()) as T & { error?: string };
+  const contentType = response.headers.get("content-type") ?? "";
+  const isJson = contentType.includes("application/json");
+  const data = isJson ? ((await response.json()) as T & ApiErrorPayload) : null;
+  const text = isJson ? null : await response.text();
 
   if (!response.ok) {
-    throw new Error(data.error ?? "Request failed.");
+    const message =
+      data?.message ??
+      data?.error ??
+      text ??
+      `Request failed with status ${response.status}.`;
+
+    throw new ApiError(message, {
+      status: response.status,
+      payload: data ?? undefined,
+    });
   }
 
-  return data;
+  return data as T;
 }
 
 export async function sendChat(messages: ChatMessage[]) {
@@ -152,6 +297,141 @@ export async function unlockSite(password: string) {
   });
 
   return readJson<{ authenticated: boolean }>(response);
+}
+
+export async function generateFacebookAd(input: FacebookAdFormData) {
+  const response = await fetch(`${API_URL}/api/facebook-ads/generate`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  return readJson<{ generated: FacebookAdGeneratedContent; debugLogs?: FacebookAdsDebugLog[] }>(response);
+}
+
+export async function createFacebookAdCampaign(input: {
+  form: FacebookAdFormData;
+  generated: FacebookAdGeneratedContent;
+  imageBase64: string;
+}) {
+  const response = await fetch(`${API_URL}/api/facebook-ads/create-campaign`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  return readJson<FacebookAdCreateResult>(response);
+}
+
+export async function analyzePromptRace(input: {
+  imageBase64: string;
+  prompt: string;
+  enableGrounding: boolean;
+}) {
+  const response = await fetch(`${API_URL}/api/prompt-race/prompt-one`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  return readJson<{
+    analysis: PromptRaceAnalysis;
+    usage: PromptRaceUsage;
+  }>(response);
+}
+
+export async function analyzePromptTwoAgentOne(input: {
+  imageBase64: string;
+  prompt: string;
+  enableGrounding: boolean;
+}) {
+  const response = await fetch(`${API_URL}/api/prompt-race/prompt-two/agent-one`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  return readJson<{
+    productName: string | null;
+    categories: string[];
+    extractedIngredients: string;
+    usage: PromptRaceUsage;
+  }>(response);
+}
+
+export async function analyzePromptTwoAgentTwo(input: {
+  imageBase64: string;
+  prompt: string;
+  extractedIngredients: string;
+  agentOneProductName?: string | null;
+  agentOneCategories: string[];
+  userProfile: {
+    allergies: string[];
+    healthConditions: string[];
+    dietaryPreferences: string[];
+    skinConditions: string[];
+  };
+  enableGrounding: boolean;
+}) {
+  const response = await fetch(`${API_URL}/api/prompt-race/prompt-two/agent-two`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  return readJson<{
+    analysis: PromptRaceAnalysis;
+    usage: PromptRaceUsage;
+  }>(response);
+}
+
+export async function analyzePromptTwoAgentThree(input: {
+  imageBase64: string;
+}) {
+  const response = await fetch(`${API_URL}/api/prompt-race/prompt-two/agent-three`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  return readJson<{
+    image: PromptRaceGeneratedImage;
+    usage: PromptRaceUsage;
+  }>(response);
+}
+
+export async function analyzeSupabaseScan(input: { imageBase64: string }) {
+  const response = await fetch(
+    "https://ihichdejyaeignzbnfgb.supabase.co/functions/v1/prompt-race-analyze",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+
+  return readJson<{
+    analysis: PromptRaceAnalysis;
+    usage: PromptRaceUsage;
+  }>(response);
 }
 
 export async function listProjects() {

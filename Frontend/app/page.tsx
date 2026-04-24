@@ -20,6 +20,18 @@ const TOOLS = [
     status: "Under Construction",
     href: "/presentation-decks",
   },
+  {
+    name: "Facebook ads",
+    description: "Generate Facebook lead ads with Gemini-written copy, review everything in preview, and push campaigns straight to Meta.",
+    status: "Under Construction",
+    href: "/facebook-ads",
+  },
+  {
+    name: "Gud For Us Prompt Race",
+    description: "Compare two Gemini prompt variants on the same product image and inspect scores, compatibility, and ingredients side by side.",
+    status: "Under Construction",
+    href: "/gud-for-us-prompt-race",
+  },
 ];
 
 const PAGE_SIZE = 4;

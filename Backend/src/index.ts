@@ -6,7 +6,10 @@ import { authRouter } from "./routes/auth.js";
 import { generationsRouter } from "./routes/generations.js";
 import { projectsRouter } from "./routes/projects.js";
 import { slidesRouter } from "./routes/slides.js";
+import { facebookAdsRouter } from "./routes/facebook-ads.js";
+import { promptRaceRouter } from "./routes/prompt-race.js";
 import { uploadthingHandler } from "./uploadthing.js";
+import { runFacebookAdsHealthCheck } from "./lib/facebook-ads.js";
 
 const app = express();
 
@@ -21,7 +24,7 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json());
+app.use(express.json({ limit: "35mb" }));
 
 app.get("/health", (_req, res) => {
   res.json({
@@ -36,7 +39,10 @@ app.use("/api/chat", chatRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/api/generations", generationsRouter);
 app.use("/api/slides", slidesRouter);
+app.use("/api/facebook-ads", facebookAdsRouter);
+app.use("/api/prompt-race", promptRaceRouter);
 
 app.listen(env.PORT, () => {
   console.log(`Backend running on http://localhost:${env.PORT}`);
+  void runFacebookAdsHealthCheck();
 });

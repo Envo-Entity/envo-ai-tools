@@ -13,19 +13,32 @@ A simple monorepo with:
 npm run setup
 ```
 
-2. Create env files:
+2. Create env files from the examples:
 
-- `Backend/.env`
-- `Frontend/.env.local`
+- `cp Backend/.env.example Backend/.env`
+- `cp Frontend/.env.example Frontend/.env.local`
 
 3. Add your values:
 
 ```env
 # Backend/.env
 PORT=4000
-DATABASE_URL=your_neon_database_url
-GEMINI_API_KEY=your_gemini_api_key
 FRONTEND_URL=http://localhost:3000
+
+DATABASE_URL=your_neon_database_url
+
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_TEXT_MODEL=gemini-3.1-pro-preview
+GEMINI_IMAGE_MODEL=gemini-3.1-flash-image-preview
+
+META_APP_ID=your_meta_app_id
+META_APP_SECRET=your_meta_app_secret
+META_ACCESS_TOKEN=your_meta_access_token
+META_AD_ACCOUNT_ID=123456789012345
+META_PAGE_ID=123456789012345
+META_DSA_BENEFICIARY=Your legal business name
+META_DSA_PAYOR=Your legal paying entity name
+
 SITE_PASSWORD=1234
 AUTH_COOKIE_SECRET=use-a-long-random-string-here
 AUTH_COOKIE_DOMAIN=
@@ -38,6 +51,13 @@ UPLOADTHING_TOKEN=your_uploadthing_token
 # Frontend/.env.local
 NEXT_PUBLIC_API_URL=http://localhost:4000
 ```
+
+Notes:
+
+- `META_AD_ACCOUNT_ID` should be the Meta ad account ID. `123456789012345` is preferred, and `act_123456789012345` is also accepted.
+- `META_APP_ID` and `META_APP_SECRET` are included in the example because they are part of the expected Meta credential set, even though the current campaign-creation flow only directly requires `META_ACCESS_TOKEN`, `META_AD_ACCOUNT_ID`, and `META_PAGE_ID` at runtime.
+- `META_DSA_BENEFICIARY` should be the legal person or organization being promoted in the ad.
+- `META_DSA_PAYOR` should be the legal paying entity if Meta requires it for the account. In many cases it can be the same as the beneficiary.
 
 4. Start both apps:
 
