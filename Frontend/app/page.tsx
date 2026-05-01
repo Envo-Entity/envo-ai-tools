@@ -27,6 +27,12 @@ const TOOLS = [
     href: "/facebook-ads",
   },
   {
+    name: "Instagram Transcriber",
+    description: "Paste a public Reel link, download it server-side, send it through Gemini, and get a clean transcript back.",
+    status: "Live",
+    href: "/instagram-transcriber",
+  },
+  {
     name: "Gud For Us Prompt Race",
     description: "Compare two Gemini prompt variants on the same product image and inspect scores, compatibility, and ingredients side by side.",
     status: "Under Construction",

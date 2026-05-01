@@ -224,6 +224,48 @@ export type GenerationRun = {
   updatedAt: string;
 };
 
+export type InstagramTranscriberStep =
+  | "queued"
+  | "resolving"
+  | "downloading"
+  | "optimizing"
+  | "uploading"
+  | "transcribing"
+  | "completed"
+  | "failed";
+
+export type InstagramTranscriptSegment = {
+  start: string;
+  end: string;
+  text: string;
+};
+
+export type InstagramTranscriptionResult = {
+  sourceUrl: string;
+  shortcode: string;
+  resolver: string;
+  mediaBytes: number;
+  uploadedMimeType: string;
+  language: string;
+  transcript: string;
+  segments: InstagramTranscriptSegment[];
+  summary: string;
+  hooks: string[];
+  quotes: string[];
+};
+
+export type InstagramTranscriptionJob = {
+  id: string;
+  sourceUrl: string;
+  status: "running" | "completed" | "failed";
+  step: InstagramTranscriberStep;
+  message: string;
+  createdAt: string;
+  updatedAt: string;
+  result: InstagramTranscriptionResult | null;
+  error: string | null;
+};
+
 export type ProjectDetail = {
   project: {
     id: string;
@@ -297,6 +339,28 @@ export async function unlockSite(password: string) {
   });
 
   return readJson<{ authenticated: boolean }>(response);
+}
+
+export async function createInstagramTranscriptionJob(url: string) {
+  const response = await fetch(`${API_URL}/api/instagram-transcriber/jobs`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ url }),
+  });
+
+  return readJson<{ job: InstagramTranscriptionJob }>(response);
+}
+
+export async function getInstagramTranscriptionJob(jobId: string) {
+  const response = await fetch(`${API_URL}/api/instagram-transcriber/jobs/${jobId}`, {
+    cache: "no-store",
+    credentials: "include",
+  });
+
+  return readJson<{ job: InstagramTranscriptionJob }>(response);
 }
 
 export async function generateFacebookAd(input: FacebookAdFormData) {

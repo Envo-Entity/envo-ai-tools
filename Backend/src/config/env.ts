@@ -30,6 +30,7 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().min(1).optional(),
   GEMINI_TEXT_MODEL: z.string().min(1).default("gemini-3.1-pro-preview"),
   GEMINI_IMAGE_MODEL: z.string().min(1).default("gemini-3.1-flash-image-preview"),
+  GEMINI_TRANSCRIPTION_MODEL: z.string().min(1).default("gemini-2.5-flash"),
   META_APP_ID: z.string().min(1).optional(),
   META_APP_SECRET: z.string().min(1).optional(),
   META_ACCESS_TOKEN: z.string().min(1).optional(),
