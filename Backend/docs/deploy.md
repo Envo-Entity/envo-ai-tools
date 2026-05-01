@@ -82,6 +82,29 @@ $SSH_CMD "free -m"                            # Check memory
 
 ---
 
+## System Dependencies
+
+The Instagram transcription service requires several external tools. If you see errors about missing modules or binaries (e.g., `yt-dlp missing`, `ModuleNotFoundError: No module named 'instaloader'`), run these commands on the server:
+
+```bash
+# SSH into the server first
+ssh -i /Users/mayank/Developer/Envo/envo-ai-tools-server-key.pem ubuntu@ec2-3-250-26-73.eu-west-1.compute.amazonaws.com
+
+# Install system binaries
+sudo apt update
+sudo apt install -y ffmpeg yt-dlp gallery-dl python3-pip
+
+# Install Python dependencies (for the instaloader resolver)
+sudo pip3 install --upgrade instaloader --break-system-packages
+
+# Ensure Node dependencies are installed
+cd ~/app/backend
+npm install --omit=dev
+pm2 restart envo-backend
+```
+
+---
+
 ## Server setup details (already done)
 
 - Node.js 22 installed via NodeSource
