@@ -36,8 +36,8 @@ const neuebitFont = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "ENVO AI TOOLS",
-  description: "Simple Gemini chat app built with Next.js and Express.",
+  title: "ClickToScript",
+  description: "Transcribe Instagram Reels into scripts, summaries, hooks, and timestamped lines.",
 };
 
 export default function RootLayout({
