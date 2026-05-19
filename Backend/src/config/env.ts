@@ -44,6 +44,7 @@ const envSchema = z.object({
   AUTH_COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
   AUTH_COOKIE_SECURE: booleanish.default(true),
   UPLOADTHING_TOKEN: z.string().min(1).optional(),
+  TWITTERAPI_IO_KEY: z.string().min(1).optional(),
 });
 
 export const env = envSchema.parse(process.env);

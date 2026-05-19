@@ -645,3 +645,34 @@ export async function registerUploadedProjectMedia(
 export function getSlideDownloadUrl(slideId: string) {
   return `${API_URL}/api/slides/${slideId}/download`;
 }
+
+// ─── Twitter Analyzer ────────────────────────────────────────────────────────
+
+export type TwitterNotableTweet = {
+  text: string;
+  reason: string;
+};
+
+export type TwitterSentiment = "positive" | "neutral" | "negative" | "mixed";
+
+export type TwitterDigestResult = {
+  username: string;
+  tweetCount: number;
+  summary: string;
+  mainTopics: string[];
+  writingStyle: string;
+  sentiment: TwitterSentiment;
+  engagementInsight: string;
+  notableTweets: TwitterNotableTweet[];
+};
+
+export async function analyzeTwitterTimeline(username: string) {
+  const response = await fetch(`${API_URL}/api/twitter-analyzer/analyze`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  });
+
+  return readJson<{ result: TwitterDigestResult }>(response);
+}

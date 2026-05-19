@@ -9,6 +9,7 @@ import { slidesRouter } from "./routes/slides.js";
 import { facebookAdsRouter } from "./routes/facebook-ads.js";
 import { promptRaceRouter } from "./routes/prompt-race.js";
 import { instagramTranscriberRouter } from "./routes/instagram-transcriber.js";
+import { twitterAnalyzerRouter } from "./features/twitter-analyzer/router.js";
 import { uploadthingHandler } from "./uploadthing.js";
 import { runFacebookAdsHealthCheck } from "./lib/facebook-ads.js";
 
@@ -74,6 +75,7 @@ app.use("/api/slides", slidesRouter);
 app.use("/api/facebook-ads", facebookAdsRouter);
 app.use("/api/prompt-race", promptRaceRouter);
 app.use("/api/instagram-transcriber", instagramTranscriberRouter);
+app.use("/api/twitter-analyzer", twitterAnalyzerRouter);
 
 app.listen(env.PORT, () => {
   console.log(`Backend running on http://localhost:${env.PORT}`);

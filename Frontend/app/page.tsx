@@ -38,6 +38,12 @@ const TOOLS = [
     status: "Under Construction",
     href: "/gud-for-us-prompt-race",
   },
+  {
+    name: "Twitter Analyzer",
+    description: "Enter any public Twitter handle, pull their recent timeline via twitterapi.io, and get a Gemini-powered digest — topics, tone, writing style, and standout tweets.",
+    status: "Live",
+    href: "/twitter-analyzer",
+  },
 ];
 
 const PAGE_SIZE = 4;
